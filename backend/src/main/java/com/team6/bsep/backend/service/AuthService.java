@@ -26,6 +26,7 @@ public class AuthService {
     private final UserRepository users;
     private final VerificationTokenRepository tokens;
     private final PasswordEncoder encoder;
+    private final EmailService emailService;
 
     // koliko traje aktivacioni link (u satima)
     @Value("${app.activation.expiry-hours:24}")
@@ -37,10 +38,11 @@ public class AuthService {
 
     public AuthService(UserRepository users,
                        VerificationTokenRepository tokens,
-                       PasswordEncoder encoder) {
+                       PasswordEncoder encoder, EmailService emailService) {
         this.users = users;
         this.tokens = tokens;
         this.encoder = encoder;
+        this.emailService = emailService;
     }
 
     @Transactional
@@ -81,7 +83,15 @@ public class AuthService {
 
         // 4) za razvoj: ispiši kompletan link u log
         var activationLink = backendBaseUrl + "/api/auth/verify?token=" + tokenValue;
-        log.info("Activation link for {}: {}", email, activationLink);
+        try {
+            emailService.sendActivation(email, activationLink);
+        } catch (org.springframework.mail.MailException ex) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                    org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR,
+                    "Sending activation link failed. Please, try again."
+            );
+        }
+
     }
 
     @Transactional
