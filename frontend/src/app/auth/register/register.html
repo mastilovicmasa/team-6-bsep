@@ -1,0 +1,53 @@
+<div class="page">
+  <div class="auth-card">
+    <h2>Registracija</h2>
+
+    <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
+      <label>Email
+        <input type="email" formControlName="email" />
+      </label>
+      <div *ngIf="form.get('email')?.touched && form.get('email')?.invalid">
+        <small *ngIf="form.get('email')?.errors?.['required']">Obavezno polje.</small>
+        <small *ngIf="form.get('email')?.errors?.['email']">Neispravan email.</small>
+      </div>
+
+      <label>Ime
+        <input type="text" formControlName="firstName" />
+      </label>
+      <div *ngIf="form.get('firstName')?.touched && form.get('firstName')?.invalid">
+        <small>Obavezno polje.</small>
+      </div>
+
+      <label>Prezime
+        <input type="text" formControlName="lastName" />
+      </label>
+      <div *ngIf="form.get('lastName')?.touched && form.get('lastName')?.invalid">
+        <small>Obavezno polje.</small>
+      </div>
+
+      <label>Organizacija
+        <input type="text" formControlName="organization" />
+      </label>
+      <div *ngIf="form.get('organization')?.touched && form.get('organization')?.invalid">
+        <small>Obavezno polje.</small>
+      </div>
+
+      <label>Lozinka
+        <input type="password" formControlName="password" />
+      </label>
+      <div *ngIf="form.get('password')?.touched && form.get('password')?.invalid">
+        <small *ngIf="form.get('password')?.errors?.['required']">Obavezno polje.</small>
+        <small *ngIf="form.get('password')?.errors?.['minlength']">Minimum 12 karaktera.</small>
+      </div>
+
+      <label>Potvrda lozinke
+        <input type="password" formControlName="confirmPassword" />
+      </label>
+
+      <button type="submit" [disabled]="submitting || form.invalid">Registruj se</button>
+    </form>
+
+    <p *ngIf="successMsg" class="msg success">{{ successMsg }}</p>
+    <p *ngIf="errorMsg" class="msg error">{{ errorMsg }}</p>
+  </div>
+</div>

@@ -1,0 +1,103 @@
+/* centriranje stranice */
+.page {
+  min-height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: #f6f7fb;
+}
+
+/* kartica */
+.auth-card {
+  width: 100%;
+  max-width: 480px;
+  background: #fff;
+  border-radius: 14px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.06);
+  padding: 24px 26px;
+}
+
+/* naslov */
+h2 {
+  margin: 0 0 16px;
+  font-size: 22px;
+  font-weight: 600;
+}
+
+/* forma */
+form {
+  display: grid;
+  gap: 12px;
+}
+
+/* label + input layout */
+label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+/* inputi */
+input {
+  appearance: none;
+  padding: 10px 12px;
+  border: 1px solid #d0d5dd;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  outline: none;
+  background: #fff;
+}
+
+input:focus {
+  border-color: #6366f1; /* indigo-ish */
+  box-shadow: 0 0 0 3px rgba(99,102,241,0.15);
+}
+
+/* poruke za greške ispod polja */
+small {
+  color: #b42318;      /* crvenkasto */
+  font-size: 0.8rem;
+}
+
+/* dugme */
+button {
+  margin-top: 6px;
+  padding: 10px 14px;
+  border: 0;
+  border-radius: 10px;
+  background: #0ea5e9;   /* sky-500 */
+  color: #fff;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform .02s ease, filter .15s ease;
+}
+
+button:hover {
+  filter: brightness(0.98);
+}
+
+button:active {
+  transform: translateY(1px);
+}
+
+button[disabled] {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* globalne poruke ispod forme */
+.msg {
+  margin-top: 14px;
+  font-size: 0.95rem;
+}
+
+.msg.success { color: #065f46; } /* zelenkasto */
+.msg.error   { color: #991b1b; } /* crvenkasto */
+
+/* malo zategni na uskim ekranima */
+@media (max-width: 420px) {
+  .auth-card { padding: 18px; border-radius: 12px; }
+}
