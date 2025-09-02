@@ -1,35 +1,35 @@
 <div class="page">
   <div class="auth-card">
-    <h2>Register</h2>
+    <h2>Sign up</h2>
 
     <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
       <label>Email
         <input type="email" formControlName="email" />
       </label>
       <div *ngIf="form.get('email')?.touched && form.get('email')?.invalid">
-        <small *ngIf="form.get('email')?.errors?.['required']">Filed required.</small>
+        <small *ngIf="form.get('email')?.errors?.['required']">Field required.</small>
         <small *ngIf="form.get('email')?.errors?.['email']">Email not valid.</small>
       </div>
 
-      <label>Firstname
+      <label>First name
         <input type="text" formControlName="firstName" />
       </label>
       <div *ngIf="form.get('firstName')?.touched && form.get('firstName')?.invalid">
-        <small>Filed required.</small>
+        <small>Field required.</small>
       </div>
 
-      <label>Lastname
+      <label>Last name
         <input type="text" formControlName="lastName" />
       </label>
       <div *ngIf="form.get('lastName')?.touched && form.get('lastName')?.invalid">
-        <small>Filed required.</small>
+        <small>Field required.</small>
       </div>
 
       <label>Organization
         <input type="text" formControlName="organization" />
       </label>
       <div *ngIf="form.get('organization')?.touched && form.get('organization')?.invalid">
-        <small>Filed required.</small>
+        <small>Field required.</small>
       </div>
 
       <!-- LOZINKA -->
@@ -42,12 +42,12 @@
             (input)="onPasswordInput()"
           />
           <button type="button" class="toggle" (click)="showPw = !showPw">
-            {{ showPw ? 'Show' : 'Hidde' }}
+            {{ showPw ? 'Hide' : 'Show' }}
           </button>
         </div>
       </label>
       <div *ngIf="form.get('password')?.touched && form.get('password')?.invalid">
-        <small *ngIf="form.get('password')?.errors?.['required']">Filed required.</small>
+        <small *ngIf="form.get('password')?.errors?.['required']">Field required.</small>
         <small *ngIf="form.get('password')?.errors?.['minlength']">Minimum 12 characters.</small>
       </div>
 
@@ -81,7 +81,12 @@
       </div>
 
       <button type="submit" [disabled]="submitting || form.invalid || strength < 2 || form.errors?.['passwordMismatch']">Register</button>
+      
     </form>
+    <p class="muted">
+        Already have an account?
+        <a routerLink="/login">Sing in</a>
+    </p>
 
     <p *ngIf="successMsg" class="msg success">{{ successMsg }}</p>
     <p *ngIf="errorMsg" class="msg error">{{ errorMsg }}</p>

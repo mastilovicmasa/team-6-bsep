@@ -6,6 +6,12 @@ export const routes: Routes = [
     loadComponent: () =>
       import('./auth/register/register').then(m => m.Register)
   },
+  {
+    path: 'login',
+    loadComponent: () =>
+      import('./auth/login/login').then(m => m.Login)
+  },
   { path: '', pathMatch: 'full', redirectTo: 'register' },
-  { path: '**', redirectTo: 'register' }
+  { path: '**', redirectTo: 'register' },
+
 ];
