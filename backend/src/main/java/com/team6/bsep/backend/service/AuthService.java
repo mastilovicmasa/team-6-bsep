@@ -1,23 +1,36 @@
 package com.team6.bsep.backend.service;
 
+import com.team6.bsep.backend.dto.JwtResponse;
 import com.team6.bsep.backend.dto.RegisterRequest;
+import com.team6.bsep.backend.model.TokenInfo;
 import com.team6.bsep.backend.model.User;
 import com.team6.bsep.backend.model.VerificationToken;
 import com.team6.bsep.backend.repository.UserRepository;
 import com.team6.bsep.backend.repository.VerificationTokenRepository;
+import com.team6.bsep.backend.utils.TokenUtils;
+import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalDateTime;
+import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 public class AuthService {
@@ -35,6 +48,22 @@ public class AuthService {
     // za logovanje kompletnog linka u dev-u
     @Value("${app.backend-base-url:http://localhost:8080}")
     private String backendBaseUrl;
+
+    @Autowired
+    private AuthenticationManager authenticationManager;
+
+    @Autowired
+    private HttpServletRequest request;
+
+    @Autowired
+    private TokenUtils tokenUtils;
+
+    public Map<String, TokenInfo> activeTokens = new ConcurrentHashMap<>();
+    private Map<String, String> jtiToJwtMap = new ConcurrentHashMap<>();
+
+    @Autowired
+    private CaptchaService captchaService;
+
 
     public AuthService(UserRepository users,
                        VerificationTokenRepository tokens,
@@ -109,6 +138,47 @@ public class AuthService {
         user.setStatus(com.team6.bsep.backend.model.UserStatus.ACTIVE);
         user.setActivatedAt(Instant.now());
         token.setUsedAt(Instant.now());
+    }
+
+    public ResponseEntity<?> login(String email, String password, String recaptchaToken) {
+        try {
+            boolean captchaOk = captchaService.verifyCaptcha(recaptchaToken);
+            if (!captchaOk) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).body("CAPTCHA validation failed");
+            }
+
+            Authentication authentication = authenticateUser(email, password);
+            SecurityContextHolder.getContext().setAuthentication(authentication);
+
+            String jti = UUID.randomUUID().toString();
+            String jwt = tokenUtils.generateToken(email);
+            int expiresIn = tokenUtils.getExpiredIn();
+
+            registerActiveToken(jti, jwt);
+
+            log.info("Login successful for email: {}, IP: {}, User-Agent: {}", email,
+                    request.getRemoteAddr(), request.getHeader("User-Agent"));
+
+            return ResponseEntity.ok(new JwtResponse(jwt, expiresIn, jti));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Wrong email or password");
+        }
+    }
+
+    private Authentication authenticateUser(String email, String password) {
+        return authenticationManager.authenticate(
+                new UsernamePasswordAuthenticationToken(email, password));
+    }
+
+    private void registerActiveToken(String jti, String jwt) {
+        TokenInfo tokenInfo = new TokenInfo(
+                jti,
+                request.getRemoteAddr(),
+                request.getHeader("User-Agent"),
+                LocalDateTime.now()
+        );
+        activeTokens.put(jti, tokenInfo);
+        jtiToJwtMap.put(jti, jwt);
     }
 }
 

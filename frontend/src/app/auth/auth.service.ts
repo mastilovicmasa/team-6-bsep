@@ -11,6 +11,18 @@ export interface RegisterRequest {
   confirmPassword: string;
 }
 
+export interface LoginRequest {
+  email: string;
+  password: string;
+  recaptchaToken: string;
+}
+
+export interface JwtResponse {
+  jwt: string;
+  expiresIn: number;
+  jti: string;
+}
+
 @Injectable({ providedIn: 'root' })
 export class AuthService {
  
@@ -20,5 +32,9 @@ export class AuthService {
 
   register(payload: RegisterRequest): Observable<void> {
     return this.http.post<void>(`${this.API}/register`, payload);
+  }
+
+  login(payload: LoginRequest): Observable<JwtResponse> {
+    return this.http.post<JwtResponse>(`${this.API}/login`, payload);
   }
 }

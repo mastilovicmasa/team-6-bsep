@@ -1,5 +1,6 @@
 package com.team6.bsep.backend.controller;
 
+import com.team6.bsep.backend.dto.LoginRequest;
 import com.team6.bsep.backend.dto.RegisterRequest;
 import com.team6.bsep.backend.service.AuthService;
 import jakarta.validation.Valid;
@@ -29,4 +30,14 @@ public class AuthController {
         auth.verify(token);
         return ResponseEntity.ok("Account activated");
     }
+
+    @PostMapping("/login")
+    public ResponseEntity<?> login(@RequestBody LoginRequest request) {
+        return auth.login(
+                request.getEmail(),
+                request.getPassword(),
+                request.getRecaptchaToken()
+        );
+    }
+
 }
