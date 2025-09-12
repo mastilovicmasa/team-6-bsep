@@ -33,6 +33,11 @@ public class AuthController {
 
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody LoginRequest request) {
-        return auth.login(request.getEmail(), request.getPassword());
+        return auth.login(
+                request.getEmail(),
+                request.getPassword(),
+                request.getRecaptchaToken()
+        );
     }
+
 }

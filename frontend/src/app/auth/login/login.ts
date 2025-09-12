@@ -3,10 +3,11 @@ import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import { AuthService, LoginRequest, JwtResponse } from '../../auth/auth.service';
 import { RouterLink, Router } from '@angular/router';
+import { RecaptchaModule } from 'ng-recaptcha';
 
 @Component({
   selector: 'app-login',
-  imports: [CommonModule, ReactiveFormsModule, RouterLink],
+  imports: [CommonModule, ReactiveFormsModule, RouterLink, RecaptchaModule],
   templateUrl: './login.html',
   styleUrl: './login.css'
 })
@@ -23,6 +24,7 @@ export class Login {
   form = this.fb.group({
     email: ['', [Validators.required, Validators.email]],
     password: ['', Validators.required],
+    recaptchaToken: ['', Validators.required]
   });
 
   submit() {
@@ -48,5 +50,9 @@ export class Login {
         this.errorMsg = err?.error || 'Invalid email or password';
       }
     });
+  }
+
+  onCaptchaResolved(token: string | null) {
+    this.form.patchValue({ recaptchaToken: token });
   }
 }

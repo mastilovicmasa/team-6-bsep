@@ -61,6 +61,9 @@ public class AuthService {
     public Map<String, TokenInfo> activeTokens = new ConcurrentHashMap<>();
     private Map<String, String> jtiToJwtMap = new ConcurrentHashMap<>();
 
+    @Autowired
+    private CaptchaService captchaService;
+
 
     public AuthService(UserRepository users,
                        VerificationTokenRepository tokens,
@@ -137,8 +140,13 @@ public class AuthService {
         token.setUsedAt(Instant.now());
     }
 
-    public ResponseEntity<?> login(String email, String password) {
+    public ResponseEntity<?> login(String email, String password, String recaptchaToken) {
         try {
+            boolean captchaOk = captchaService.verifyCaptcha(recaptchaToken);
+            if (!captchaOk) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).body("CAPTCHA validation failed");
+            }
+
             Authentication authentication = authenticateUser(email, password);
             SecurityContextHolder.getContext().setAuthentication(authentication);
 
