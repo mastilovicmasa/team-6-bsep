@@ -1,1 +1,46 @@
-<p>login works!</p>
+<div class="page">
+  <div class="auth-card">
+    <h2>Sign in</h2>
+
+    <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
+      <label>Email
+        <input type="email" formControlName="email" />
+      </label>
+      <div *ngIf="form.get('email')?.touched && form.get('email')?.invalid">
+        <small *ngIf="form.get('email')?.errors?.['required']">Field required.</small>
+        <small *ngIf="form.get('email')?.errors?.['email']">Email not valid.</small>
+      </div>
+
+      <label>Password
+        <div class="pw-input">
+          <input
+            [type]="showPw ? 'text' : 'password'"
+            formControlName="password"
+            autocomplete="current-password"
+          />
+          <button type="button" class="toggle" (click)="showPw = !showPw">
+            {{ showPw ? 'Hide' : 'Show' }}
+          </button>
+        </div>
+      </label>
+      <div *ngIf="form.get('password')?.touched && form.get('password')?.invalid">
+        <small>Field required.</small>
+      </div>
+
+      <re-captcha
+        (resolved)="onCaptchaResolved($event)">
+      </re-captcha>
+
+
+      <button type="submit" [disabled]="submitting || form.invalid">Login</button>
+    </form>
+
+    <p class="muted">
+      Don’t have an account?
+      <a routerLink="/register">Sign up</a>
+    </p>
+
+    <p *ngIf="successMsg" class="msg success">{{ successMsg }}</p>
+    <p *ngIf="errorMsg" class="msg error">{{ errorMsg }}</p>
+  </div>
+</div>
