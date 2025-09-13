@@ -1,0 +1,21 @@
+<h2>Admin</h2>
+
+<div class="actions">
+  <button class="primary" (click)="createRoot()" [disabled]="busy">Generate Root CA</button>
+  <button (click)="refreshStatus()" [disabled]="busy">Refresh status</button>
+  <a class="btn" href="/api/ca/root.pem" target="_blank" rel="noopener">Download root.pem</a>
+</div>
+
+<p class="message" *ngIf="msg">{{ msg }}</p>
+
+<div *ngIf="status" class="status-card">
+  <h3>Root CA status</h3>
+  <div class="status-grid">
+    <div><span class="label">Subject:</span> <span class="value">{{ status['subject(cert)'] }}</span></div>
+    <div><span class="label">Issuer:</span> <span class="value">{{ status['issuer(cert)'] }}</span></div>
+    <div><span class="label">Valid now:</span> <span class="value">{{ status.nowInRange }}</span></div>
+    <div><span class="label">Self-signed:</span> <span class="value">{{ status.isSelfSigned }}</span></div>
+    <div><span class="label">Is CA:</span> <span class="value">{{ status.isCA }}</span></div>
+    <div><span class="label">PathLen:</span> <span class="value">{{ status.pathLenConstraint }}</span></div>
+  </div>
+</div>

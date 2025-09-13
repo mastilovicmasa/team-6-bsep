@@ -1,0 +1,122 @@
+/* --- Admin component styles --- */
+:host {
+  --bg: #f7f8fa;
+  --card-bg: #fff;
+  --text: #111827;
+  --muted: #6b7280;
+  --primary: #2563eb;
+  --primary-hover: #1d4ed8;
+  --border: #e5e7eb;
+  --radius: 14px;
+  --shadow: 0 6px 18px rgba(0,0,0,.06);
+
+  display: block;
+  padding: 24px;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100%;
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji","Segoe UI Emoji", "Segoe UI Symbol";
+}
+
+/* Dark mode */
+@media (prefers-color-scheme: dark) {
+  :host {
+    --bg: #0b1220;
+    --card-bg: #0f172a;
+    --text: #e5e7eb;
+    --muted: #9ca3af;
+    --primary: #60a5fa;
+    --primary-hover: #93c5fd;
+    --border: #1f2937;
+    --shadow: 0 8px 24px rgba(0,0,0,.35);
+  }
+}
+
+h2, h3 {
+  margin: 0 0 12px;
+  letter-spacing: .2px;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 16px 0 18px;
+}
+
+/* Buttons + button-like links */
+button, .btn {
+  appearance: none;
+  border: 1px solid var(--border);
+  background: var(--card-bg);
+  color: var(--text);
+  padding: 10px 14px;
+  border-radius: 12px;
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: var(--shadow);
+  transition: transform .06s ease, background .2s ease, border-color .2s ease;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+button:hover, .btn:hover {
+  transform: translateY(-1px);
+  border-color: var(--primary);
+}
+
+button:disabled, .btn[aria-disabled="true"] {
+  opacity: .6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Primary look (add class="primary" if želiš naglašeno dugme) */
+button.primary, .btn.primary {
+  background: var(--primary);
+  color: white;
+  border-color: transparent;
+}
+button.primary:hover, .btn.primary:hover { background: var(--primary-hover); }
+
+/* Message line */
+.message {
+  margin: 6px 0 14px;
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+
+/* Card oko statusa */
+.status-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 16px;
+}
+
+.status-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px 16px;
+}
+@media (max-width: 640px) {
+  .status-grid { grid-template-columns: 1fr; }
+}
+
+.label { color: var(--muted); }
+.value { font-weight: 600; }
+
+/* JSON fallback ako prikazuješ ceo objekat */
+pre {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 14px;
+  overflow: auto;
+  margin: 0;
+}
