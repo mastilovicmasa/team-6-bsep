@@ -1,4 +1,4 @@
-package com.team6.bsep.backend.bootstrap;
+package com.team6.bsep.backend.init;
 
 import com.team6.bsep.backend.model.User;
 import com.team6.bsep.backend.model.UserRole;
