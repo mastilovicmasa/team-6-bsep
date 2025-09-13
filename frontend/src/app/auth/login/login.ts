@@ -43,7 +43,7 @@ export class Login {
         localStorage.setItem('jwt', res.jwt);
         localStorage.setItem('jti', res.jti);
         // redirekcija na dashboard ili home
-        this.router.navigate(['/']);
+        this.router.navigate(['admin']);
       },
       error: (err) => {
         this.submitting = false;

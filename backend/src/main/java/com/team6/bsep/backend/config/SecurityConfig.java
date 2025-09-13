@@ -62,7 +62,8 @@ public class SecurityConfig {
                                 "/error",                // da ne blokira default error handler
                                 "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html" // ako koristiš Swagger
                         ).permitAll()
-                        .anyRequest().authenticated() // sve ostalo zaključano (priprema za JWT)
+                        //.anyRequest().authenticated() // sve ostalo zaključano (priprema za JWT)
+                        .anyRequest().permitAll() // dok ne bude gotova autorizacija
                 );
         return http.build();
     }

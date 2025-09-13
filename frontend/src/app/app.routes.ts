@@ -11,7 +11,12 @@ export const routes: Routes = [
     loadComponent: () =>
       import('./auth/login/login').then(m => m.Login)
   },
+  {
+    path: 'admin',
+    loadComponent: () =>
+      import('./admin/admin.component').then(m => m.AdminComponent)
+  },
   { path: '', pathMatch: 'full', redirectTo: 'register' },
-  { path: '**', redirectTo: 'register' },
+  { path: '**', redirectTo: 'admin' },
 
 ];
