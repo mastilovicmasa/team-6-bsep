@@ -21,7 +21,10 @@ public class CertificateAuthority {
     Instant notBefore; Instant notAfter;
     Integer pathLenConstraint;
     String keystorePath; String keystoreAlias;
-    @Lob String keystorePasswordEnc; @Lob String keyPasswordEnc;
+    //@Lob
+    String keystorePasswordEnc;
+    //@Lob
+    String keyPasswordEnc;
     Instant revokedAt;
 }
 

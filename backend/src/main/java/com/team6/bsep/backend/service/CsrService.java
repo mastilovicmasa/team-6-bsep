@@ -1,5 +1,8 @@
 package com.team6.bsep.backend.service;
 
+import com.team6.bsep.backend.dto.CsrRequest;
+import com.team6.bsep.backend.repository.CertificateAuthorityRepository;
+import lombok.RequiredArgsConstructor;
 import org.bouncycastle.asn1.x500.X500Name;
 import org.bouncycastle.asn1.x500.RDN;
 import org.bouncycastle.asn1.x500.style.BCStyle;
@@ -12,9 +15,14 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.InputStreamReader;
 import java.security.PublicKey;
 import java.security.Security;
+import java.time.Duration;
+import java.time.Instant;
 
 @Service
-public class CsrParserService {
+@RequiredArgsConstructor
+public class CsrService {
+
+    private final CertificateAuthorityRepository caRepo;
 
     static {
         Security.addProvider(new org.bouncycastle.jce.provider.BouncyCastleProvider());
@@ -54,5 +62,23 @@ public class CsrParserService {
             return IETFUtils.valueToString(rdns[0].getFirst().getValue());
         }
         return "";
+    }
+
+    public void processCsr(CsrRequest request) throws Exception {
+        String caName = request.getCaName();
+        int duration = request.getDurationInDays();
+
+        var ca = caRepo.findBySubjectDn(caName)
+                .orElseThrow(() -> new IllegalArgumentException("CA not found: " + caName));
+
+        Instant now = Instant.now();
+        Instant requestedEnd = now.plus(Duration.ofDays(duration));
+        if (requestedEnd.isAfter(ca.getNotAfter())) {
+            throw new IllegalArgumentException("❌ Certificate duration exceeds CA validity (" + ca.getNotAfter() + ")");
+        }
+
+        parseAndLog(request.getCsrFile());
+
+        // ovde bi u sledećem koraku išlo i potpisivanje CSR-a
     }
 }

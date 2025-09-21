@@ -3,33 +3,35 @@
     <h2>Upload CSR</h2>
 
     <form [formGroup]="form" (ngSubmit)="submit()" novalidate>
-      <label>Choose CA
+        <label>Choose CA</label>
         <select formControlName="caName">
-          <option value="">-- Select CA --</option>
-          <option *ngFor="let ca of caOptions" [value]="ca">{{ ca }}</option>
+        <option *ngFor="let ca of caOptions" [ngValue]="ca.subjectDn">
+            {{ formatSubject(ca.subjectDn) }}
+            ({{ ca.notBefore | date:'yyyy-MM-dd' }} → {{ ca.notAfter | date:'yyyy-MM-dd' }})
+        </option>
         </select>
-      </label>
-      <div *ngIf="form.get('caName')?.touched && form.get('caName')?.invalid">
+        <div *ngIf="form.get('caName')?.touched && form.get('caName')?.invalid">
         <small>Please select a CA.</small>
-      </div>
+        </div>
 
-      <label>Certificate duration (days)
-        <input type="number" formControlName="durationInDays" min="1" />
-      </label>
-      <div *ngIf="form.get('durationInDays')?.touched && form.get('durationInDays')?.invalid">
-        <small>Enter a valid duration.</small>
-      </div>
 
-      <label>CSR file (.pem)
-        <input type="file" (change)="onFileSelected($event)" accept=".pem,.csr" />
-      </label>
-      <div *ngIf="!csrFile">
-        <small>File required.</small>
-      </div>
+        <label>Certificate duration (days)
+            <input type="number" formControlName="durationInDays" min="1" />
+        </label>
+        <div *ngIf="form.get('durationInDays')?.touched && form.get('durationInDays')?.invalid">
+            <small>Enter a valid duration.</small>
+        </div>
 
-      <button type="submit" [disabled]="submitting || form.invalid || !csrFile">
-        Upload
-      </button>
+        <label>CSR file (.pem)
+            <input type="file" (change)="onFileSelected($event)" accept=".pem,.csr" />
+        </label>
+        <div *ngIf="!csrFile">
+            <small>File required.</small>
+        </div>
+
+        <button type="submit" [disabled]="submitting || form.invalid || !csrFile">
+            Upload
+        </button>
     </form>
 
     <p *ngIf="successMsg" class="msg success">{{ successMsg }}</p>

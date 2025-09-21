@@ -1,7 +1,7 @@
-import { Component, inject } from '@angular/core';
+import { Component, inject, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
-import { HttpClient } from '@angular/common/http';
+import { CsrService, CaOption } from '../csr.service';
 
 @Component({
   selector: 'app-csr-upload',
@@ -10,21 +10,61 @@ import { HttpClient } from '@angular/common/http';
   templateUrl: './csr-upload.html',
   styleUrl: './csr-upload.css'
 })
-export class CsrUploadComponent {
+export class CsrUploadComponent implements OnInit {
   private fb = inject(FormBuilder);
-  private http = inject(HttpClient);
+  private csrService = inject(CsrService);
 
   csrFile: File | null = null;
   submitting = false;
   successMsg = '';
   errorMsg = '';
 
-  caOptions = ['TestCA1', 'TestCA2'];
+  caOptions: CaOption[] = [];
 
   form = this.fb.group({
-    caName: ['', Validators.required],
-    durationInDays: [365, [Validators.required, Validators.min(1)]]
+    caName: [null as string | null, Validators.required], 
+    durationInDays: [null as number | null, [Validators.required, Validators.min(1)]]
   });
+
+  ngOnInit() {
+    this.csrService.getCaList().subscribe({
+      next: (res) => { this.caOptions = res; },
+      error: (err) => { console.error('Failed to load CA list', err); }
+    });
+
+    this.form.get('caName')?.valueChanges.subscribe(caName => {
+      const max = this.getMaxDuration(caName);
+      const durationCtrl = this.form.get('durationInDays');
+      if (durationCtrl) {
+        durationCtrl.setValidators([
+          Validators.required,
+          Validators.min(1),
+          Validators.max(max)
+        ]);
+        durationCtrl.updateValueAndValidity();
+      }
+    });
+  }
+
+  getMaxDuration(caName: string | null): number {
+    if (!caName) return 0;
+    const ca = this.caOptions.find(c => c.subjectDn === caName);
+    if (!ca) return 0;
+
+    const notBefore = new Date(ca.notBefore).getTime();
+    const notAfter = new Date(ca.notAfter).getTime();
+    return Math.floor((notAfter - notBefore) / (1000 * 60 * 60 * 24));
+  }
+
+  formatSubject(subjectDn: string): string {
+    const parts = subjectDn.split(',');
+    const map: Record<string, string> = {};
+    for (const p of parts) {
+      const [k, v] = p.split('=').map(s => s.trim());
+      map[k] = v;
+    }
+    return `${map['CN'] || ''} (${map['O'] || ''}, ${map['C'] || ''})`;
+  }
 
   onFileSelected(event: Event) {
     const input = event.target as HTMLInputElement;
@@ -48,8 +88,8 @@ export class CsrUploadComponent {
     formData.append('durationInDays', this.form.value.durationInDays!.toString());
     formData.append('csrFile', this.csrFile!);
 
-    this.http.post('http://localhost:8080/api/csr/upload', formData).subscribe({
-      next: (res) => {
+    this.csrService.uploadCsr(formData).subscribe({
+      next: () => {
         this.submitting = false;
         this.successMsg = '✅ CSR uploaded successfully!';
       },
