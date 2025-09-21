@@ -4,13 +4,15 @@ public class JwtResponse {
     private String token;
     private int expiresIn;
     private String jti;
+    private String role;
 
     public JwtResponse() {}
 
-    public JwtResponse(String token, int expiresIn, String jti) {
+    public JwtResponse(String token, int expiresIn, String jti, String role) {
         this.token = token;
         this.expiresIn = expiresIn;
         this.jti = jti;
+        this.role = role;
     }
 
     public String getToken() {
@@ -35,5 +37,13 @@ public class JwtResponse {
 
     public void setJti(String jti) {
         this.jti = jti;
+    }
+
+    public String getRole() {
+        return role;
+    }
+
+    public void setRole(String role) {
+        this.role = role;
     }
 }

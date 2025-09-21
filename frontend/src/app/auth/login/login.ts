@@ -40,10 +40,9 @@ export class Login {
         this.submitting = false;
         this.successMsg = '✅ Logged in successfully!';
         // čuvanje tokena u localStorage/sessionStorage
-        localStorage.setItem('jwt', res.jwt);
+        localStorage.setItem('jwt', res.token);
         localStorage.setItem('jti', res.jti);
-        // redirekcija na dashboard ili home
-        this.router.navigate(['admin']);
+        this.router.navigate(['home']);
       },
       error: (err) => {
         this.submitting = false;

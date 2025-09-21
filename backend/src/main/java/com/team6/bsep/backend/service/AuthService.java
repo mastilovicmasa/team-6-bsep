@@ -151,15 +151,19 @@ public class AuthService {
             SecurityContextHolder.getContext().setAuthentication(authentication);
 
             String jti = UUID.randomUUID().toString();
-            String jwt = tokenUtils.generateToken(email);
+            var user = users.findByEmail(email)
+                    .orElseThrow(() -> new RuntimeException("User not found"));
+            String jwt = tokenUtils.generateToken(user);
             int expiresIn = tokenUtils.getExpiredIn();
+
+            String role = user.getRole().name();
 
             registerActiveToken(jti, jwt);
 
             log.info("Login successful for email: {}, IP: {}, User-Agent: {}", email,
                     request.getRemoteAddr(), request.getHeader("User-Agent"));
 
-            return ResponseEntity.ok(new JwtResponse(jwt, expiresIn, jti));
+            return ResponseEntity.ok(new JwtResponse(jwt, expiresIn, jti, role));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Wrong email or password");
         }

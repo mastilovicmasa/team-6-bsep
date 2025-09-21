@@ -1,7 +1,7 @@
 import { Routes } from '@angular/router';
 
 export const routes: Routes = [
-    {
+  {
     path: 'register',
     loadComponent: () =>
       import('./auth/register/register').then(m => m.Register)
@@ -12,15 +12,28 @@ export const routes: Routes = [
       import('./auth/login/login').then(m => m.Login)
   },
   {
-    path: 'admin',
+    path: '',
     loadComponent: () =>
-      import('./admin/admin.component').then(m => m.AdminComponent)
+      import('./home/home/home').then(m => m.HomeComponent),
+    children: [
+      {
+        path: 'dashboard',
+        loadComponent: () =>
+          import('./dashboard/dashboard').then(m => m.DashboardComponent)
+      },
+      {
+        path: 'admin',
+        loadComponent: () =>
+          import('./admin/admin.component').then(m => m.AdminComponent)
+      },
+      {
+        path: 'csr-upload',
+        loadComponent: () =>
+          import('./csr/csr-upload/csr-upload').then(m => m.CsrUploadComponent)
+      },
+      { path: '', redirectTo: 'dashboard', pathMatch: 'full' }
+    ]
   },
-  { path: '', pathMatch: 'full', redirectTo: 'register' },
-    {
-    path: 'csr-upload',
-    loadComponent: () =>
-      import('./csr/csr-upload/csr-upload').then(m => m.CsrUploadComponent)
-  },
-  { path: '**', redirectTo: 'admin' },
+  { path: '', pathMatch: 'full', redirectTo: 'login' },
+  { path: '**', redirectTo: 'dashboard' }
 ];

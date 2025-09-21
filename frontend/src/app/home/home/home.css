@@ -1,0 +1,45 @@
+.navbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #f5f5f5;
+  padding: 10px 20px;
+  border-bottom: 1px solid #ccc;
+}
+
+.navbar .left a {
+  margin-right: 12px;
+  text-decoration: none;
+  padding: 6px 12px;
+  border-radius: 6px;
+  color: #333;
+}
+
+.navbar .left a.active {
+  background: #007bff;
+  color: white;
+}
+
+.navbar .right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.logout {
+  background: transparent;
+  border: 1px solid #dc3545;
+  color: #dc3545;
+  padding: 6px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.logout:hover {
+  background: #dc3545;
+  color: white;
+}
+
+.content {
+  padding: 20px;
+}

@@ -1,5 +1,6 @@
 package com.team6.bsep.backend.utils;
 
+import com.team6.bsep.backend.model.User;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
@@ -22,10 +23,11 @@ public class TokenUtils {
 
     private final SignatureAlgorithm SIGNATURE_ALGORITHM = SignatureAlgorithm.HS512;
 
-    public String generateToken(String email) {
+    public String generateToken(User user) {
         return Jwts.builder()
                 .setIssuer(APP_NAME)
-                .setSubject(email)
+                .setSubject(user.getEmail())
+                .claim("role", user.getRole().name())
                 .setIssuedAt(new Date())
                 .setExpiration(new Date(System.currentTimeMillis() + EXPIRES_IN))
                 .signWith(Keys.hmacShaKeyFor(SECRET.getBytes()), SIGNATURE_ALGORITHM)

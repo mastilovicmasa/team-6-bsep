@@ -1,0 +1,32 @@
+<nav class="navbar">
+  <div class="left">
+    <a 
+      routerLink="home" 
+      routerLinkActive="active"
+      [routerLinkActiveOptions]="{ exact: true }">
+      🏠 Dashboard
+    </a>
+
+    <a 
+      *ngIf="role === 'ADMIN'" 
+      routerLink="admin" 
+      routerLinkActive="active">
+      ⚙️ Admin
+    </a>
+
+    <a 
+      *ngIf="role === 'USER'" 
+      routerLink="csr-upload" 
+      routerLinkActive="active">
+      📄 CSR Upload
+    </a>
+  </div>
+
+  <div class="right">
+    <button class="logout" (click)="logout()">LOGOUT</button>
+  </div>
+</nav>
+
+<section class="content">
+  <router-outlet></router-outlet>
+</section>
