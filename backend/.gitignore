@@ -31,3 +31,7 @@ build/
 
 ### VS Code ###
 .vscode/
+
+# Privatni kljucevi i CSR fajlovi
+*.key
+*.csr
