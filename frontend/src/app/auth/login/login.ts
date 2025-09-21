@@ -1,9 +1,9 @@
-import { Component, inject } from '@angular/core';
+import { Component, inject, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import { AuthService, LoginRequest, JwtResponse } from '../../auth/auth.service';
 import { RouterLink, Router } from '@angular/router';
-import { RecaptchaModule } from 'ng-recaptcha';
+import { RecaptchaModule, RecaptchaComponent } from 'ng-recaptcha';
 
 @Component({
   selector: 'app-login',
@@ -12,6 +12,8 @@ import { RecaptchaModule } from 'ng-recaptcha';
   styleUrl: './login.css'
 })
 export class Login {
+  @ViewChild(RecaptchaComponent) captcha!: RecaptchaComponent;
+  
   showPw = false;
   submitting = false;
   successMsg = '';
@@ -47,6 +49,11 @@ export class Login {
       error: (err) => {
         this.submitting = false;
         this.errorMsg = err?.error || 'Invalid email or password';
+
+        if (this.captcha) {
+          this.captcha.reset();
+        }
+        this.form.patchValue({ recaptchaToken: '' });
       }
     });
   }
