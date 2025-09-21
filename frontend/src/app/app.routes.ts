@@ -17,6 +17,10 @@ export const routes: Routes = [
       import('./admin/admin.component').then(m => m.AdminComponent)
   },
   { path: '', pathMatch: 'full', redirectTo: 'register' },
+    {
+    path: 'csr-upload',
+    loadComponent: () =>
+      import('./csr/csr-upload/csr-upload').then(m => m.CsrUploadComponent)
+  },
   { path: '**', redirectTo: 'admin' },
-
 ];
