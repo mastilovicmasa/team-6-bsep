@@ -7,6 +7,12 @@ public class CsrRequest {
     private int durationInDays;
     private MultipartFile csrFile;
 
+    public CsrRequest(String caName, int durationInDays, MultipartFile csrFile) {
+        this.caName = caName;
+        this.durationInDays = durationInDays;
+        this.csrFile = csrFile;
+    }
+
     public String getCaName() {
         return caName;
     }
