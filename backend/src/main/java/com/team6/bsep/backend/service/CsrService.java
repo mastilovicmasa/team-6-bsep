@@ -46,7 +46,7 @@ public class CsrService {
             String o = getRdnValue(subject, BCStyle.O);
             String c = getRdnValue(subject, BCStyle.C);
 
-            System.out.println("✅ CSR parsed successfully!");
+            System.out.println("CSR parsed successfully!");
             System.out.println("CN = " + cn);
             System.out.println("O  = " + o);
             System.out.println("C  = " + c);
@@ -56,12 +56,37 @@ public class CsrService {
                             .generatePublic(new java.security.spec.X509EncodedKeySpec(
                                     csr.getSubjectPublicKeyInfo().getEncoded()));
 
+            int keySize = ((java.security.interfaces.RSAPublicKey) publicKey).getModulus().bitLength();
+
             System.out.println("Public Key Algorithm = " + publicKey.getAlgorithm());
             System.out.println("Public Key Format    = " + publicKey.getFormat());
+            System.out.println("Public Key Size      = " + keySize + " bits");
+
+            var attrs = csr.getAttributes();
+            boolean hasExtensions = false;
+
+            for (var attr : attrs) {
+                if (attr.getAttrType().equals(org.bouncycastle.asn1.pkcs.PKCSObjectIdentifiers.pkcs_9_at_extensionRequest)) {
+                    hasExtensions = true;
+                    var extSeq = (org.bouncycastle.asn1.x509.Extensions) attr.getAttrValues().getObjectAt(0);
+
+                    var oids = extSeq.oids();
+                    while (oids.hasMoreElements()) {
+                        var oid = (org.bouncycastle.asn1.ASN1ObjectIdentifier) oids.nextElement();
+                        var ext = extSeq.getExtension(oid);
+                        System.out.println("Extension: " + oid.getId() + " critical=" + ext.isCritical());
+                    }
+                }
+            }
+
+            if (!hasExtensions) {
+                System.out.println("No extensions found in CSR.");
+            }
 
             return new ParsedCsr(cn, o, c);
         }
     }
+
 
 
     private String getRdnValue(X500Name x500Name, org.bouncycastle.asn1.ASN1ObjectIdentifier field) {
