@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpHeaders } from '@angular/common/http';
 
 @Injectable({ providedIn: 'root' })
 export class CaService {
@@ -9,6 +9,10 @@ export class CaService {
     return this.http.post(`${this.api}/api/admin/ca/root`, {}, { responseType: 'text' });
   }
   getRootStatus() {
-    return this.http.get<any>(`${this.api}/api/dev/ca/root/status`);
+    const token = localStorage.getItem('jwt');
+    const headers = new HttpHeaders({
+      Authorization: `Bearer ${token}`
+    });
+    return this.http.get<any>(`${this.api}/api/dev/ca/root/status`, { headers });
   }
 }
