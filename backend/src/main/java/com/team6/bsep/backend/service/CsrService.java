@@ -1,11 +1,13 @@
 package com.team6.bsep.backend.service;
 
 import com.team6.bsep.backend.dto.CsrRequest;
+import com.team6.bsep.backend.dto.MyCsr;
 import com.team6.bsep.backend.dto.ParsedCsr;
 import com.team6.bsep.backend.model.CertificateSigningRequest;
 import com.team6.bsep.backend.model.RequestStatus;
 import com.team6.bsep.backend.repository.CertificateAuthorityRepository;
 import com.team6.bsep.backend.repository.CertificateSigningRequestRepository;
+import com.team6.bsep.backend.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.bouncycastle.asn1.x500.X500Name;
 import org.bouncycastle.asn1.x500.RDN;
@@ -13,6 +15,8 @@ import org.bouncycastle.asn1.x500.style.BCStyle;
 import org.bouncycastle.asn1.x500.style.IETFUtils;
 import org.bouncycastle.pkcs.PKCS10CertificationRequest;
 import org.bouncycastle.openssl.PEMParser;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -22,6 +26,7 @@ import java.security.PublicKey;
 import java.security.Security;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -29,6 +34,7 @@ public class CsrService {
 
     private final CertificateAuthorityRepository caRepo;
     private final CertificateSigningRequestRepository requestRepo;
+    private final UserRepository userRepo;
 
     static {
         Security.addProvider(new org.bouncycastle.jce.provider.BouncyCastleProvider());
@@ -112,10 +118,23 @@ public class CsrService {
             );
         }
 
+        // ➡️ 1. Uzimamo ulogovanog korisnika
+        Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        String email;
+        if (principal instanceof UserDetails userDetails) {
+            email = userDetails.getUsername();
+        } else {
+            email = principal.toString();
+        }
+
+        var userEntity = userRepo.findByEmail(email)
+                .orElseThrow(() -> new IllegalArgumentException("User not found: " + email));
+
         ParsedCsr parsed = parseAndLog(request.getCsrFile());
 
         var caEntity = caRepo.findById(caInfo.getId())
                 .orElseThrow(() -> new IllegalArgumentException("CA not found by ID: " + caInfo.getId()));
+
 
         String pemText = new String(request.getCsrFile().getBytes(), StandardCharsets.UTF_8);
 
@@ -124,6 +143,7 @@ public class CsrService {
                 .durationInDays(duration)
                 .status(RequestStatus.PENDING)
                 .ca(caEntity)
+                .user(userEntity)
                 .subjectCn(parsed.cn())
                 .subjectO(parsed.o())
                 .subjectC(parsed.c())
@@ -134,4 +154,7 @@ public class CsrService {
         System.out.println("CSR saved in DB with ID=" + entity.getId());
     }
 
+    public List<MyCsr> getRequestsForUser(String email) {
+        return requestRepo.findMyRequestsByUserEmail(email);
+    }
 }

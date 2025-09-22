@@ -2,6 +2,7 @@ package com.team6.bsep.backend.config;
 
 
 import com.team6.bsep.backend.service.CustomUserDetailsService;
+import com.team6.bsep.backend.utils.JwtAuthFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -51,7 +52,7 @@ public class SecurityConfig {
     }
 
     @Bean
-    SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+    SecurityFilterChain filterChain(HttpSecurity http, JwtAuthFilter jwtAuthFilter) throws Exception {
         http
                 .csrf(csrf -> csrf.disable())               // stateless API
                 .cors(c -> {})
@@ -62,9 +63,10 @@ public class SecurityConfig {
                                 "/error",                // da ne blokira default error handler
                                 "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html" // ako koristiš Swagger
                         ).permitAll()
-                        //.anyRequest().authenticated() // sve ostalo zaključano (priprema za JWT)
-                        .anyRequest().permitAll() // dok ne bude gotova autorizacija
-                );
+                        .anyRequest().authenticated() // sve ostalo zaključano (priprema za JWT)
+                        //.anyRequest().permitAll() // dok ne bude gotova autorizacija
+                )
+                .addFilterBefore(jwtAuthFilter, org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter.class);;
         return http.build();
     }
 

@@ -1,13 +1,17 @@
 package com.team6.bsep.backend.controller;
 
 import com.team6.bsep.backend.dto.CsrRequest;
+import com.team6.bsep.backend.dto.MyCsr;
+import com.team6.bsep.backend.model.CertificateSigningRequest;
 import com.team6.bsep.backend.service.CsrService;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -30,8 +34,13 @@ public class CsrController {
             csrService.processCsr(request);
             return ResponseEntity.ok(Map.of("message", "CSR processed successfully!"));
         } catch (Exception e) {
+            log.error("CSR upload failed: {}", e.getMessage(), e);
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
     }
 
+    @GetMapping("/my-requests")
+    public ResponseEntity<List<MyCsr>> getMyRequests(Authentication auth) {
+        return ResponseEntity.ok(csrService.getRequestsForUser(auth.getName()));
+    }
 }

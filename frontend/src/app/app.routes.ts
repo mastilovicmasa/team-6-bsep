@@ -31,6 +31,11 @@ export const routes: Routes = [
         loadComponent: () =>
           import('./csr/csr-upload/csr-upload').then(m => m.CsrUploadComponent)
       },
+      {
+        path: 'my-requests',
+        loadComponent: () =>
+          import('./csr/my-requests/my-requests').then(m => m.MyRequestsComponent)
+      },
       { path: '', redirectTo: 'dashboard', pathMatch: 'full' }
     ]
   },
