@@ -26,6 +26,9 @@ export class ResetPassword {
   submitting = false;
   msg = '';
 
+  showPw = false;
+  showConfirm = false;
+
   submit() {
     if (this.form.invalid) {
       this.form.markAllAsTouched();
