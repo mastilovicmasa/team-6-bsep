@@ -3,6 +3,7 @@ package com.team6.bsep.backend.controller;
 import com.team6.bsep.backend.dto.ForgotPasswordRequest;
 import com.team6.bsep.backend.dto.LoginRequest;
 import com.team6.bsep.backend.dto.RegisterRequest;
+import com.team6.bsep.backend.dto.ResetPasswordRequest;
 import com.team6.bsep.backend.service.AuthService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -47,5 +48,10 @@ public class AuthController {
         return ResponseEntity.ok().build();
     }
 
+    @PostMapping("/reset-password")
+    public ResponseEntity<Void> resetPassword(@Valid @RequestBody ResetPasswordRequest req) {
+        auth.resetPassword(req);
+        return ResponseEntity.ok().build();
+    }
 
 }

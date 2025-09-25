@@ -2,6 +2,7 @@ package com.team6.bsep.backend.service;
 
 import com.team6.bsep.backend.dto.JwtResponse;
 import com.team6.bsep.backend.dto.RegisterRequest;
+import com.team6.bsep.backend.dto.ResetPasswordRequest;
 import com.team6.bsep.backend.model.PasswordResetToken;
 import com.team6.bsep.backend.model.TokenInfo;
 import com.team6.bsep.backend.model.User;
@@ -57,7 +58,7 @@ public class AuthService {
     private long resetExpiryMinutes;
 
     @Value("${app.frontend-base-url:http://localhost:4200}")
-    private String frontendBaseUrl;
+    private String frontendBaseUrl; //posto link iz mejla mora da odvede na Angular formu
 
     @Autowired
     private AuthenticationManager authenticationManager;
@@ -204,7 +205,6 @@ public class AuthService {
         var email = rawEmail == null ? "" : rawEmail.trim().toLowerCase();
         Optional<User> maybeUser = users.findByEmail(email);
 
-        // Ako korisnik ne postoji ili nije aktivan, ne bacamo grešku - samo logujemo i "noop".
         if (maybeUser.isEmpty()) {
             log.info("Password reset requested for non-existing email: {}", email);
             return;
@@ -215,10 +215,8 @@ public class AuthService {
             return;
         }
 
-        // (Opcionalno) počisti stare neiskorišćene tokene za tog korisnika
         passwordResetTokens.deleteByUserAndUsedAtIsNull(user);
 
-        // Generiši jednokratan, vremenski ograničen token
         var tokenValue = UUID.randomUUID().toString();
         var token = PasswordResetToken.builder()
                 .token(tokenValue)
@@ -228,10 +226,8 @@ public class AuthService {
 
         passwordResetTokens.save(token);
 
-        // Link ka ANGULAR ruti
         var link = frontendBaseUrl + "/reset-password?token=" + tokenValue;
 
-        // Pošalji email
         try {
             emailService.sendPasswordReset(email, link, resetExpiryMinutes);
         } catch (org.springframework.mail.MailException ex) {
@@ -240,6 +236,31 @@ public class AuthService {
         }
 
         log.info("Password reset initiated for email: {}", email);
+    }
+
+    @Transactional
+    public void resetPassword(ResetPasswordRequest req) {
+        if (!req.getNewPassword().equals(req.getConfirmPassword())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Passwords do not match");
+        }
+
+        var token = passwordResetTokens.findByToken(req.getToken())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid token"));
+
+        if (token.getUsedAt() != null) {
+            throw new ResponseStatusException(HttpStatus.GONE, "Token already used");
+        }
+
+        if (Instant.now().isAfter(token.getExpiresAt())) {
+            throw new ResponseStatusException(HttpStatus.GONE, "Token expired");
+        }
+
+        var user = token.getUser();
+        user.setPasswordHash(encoder.encode(req.getNewPassword()));
+
+        token.setUsedAt(Instant.now());
+
+        log.info("Password reset successful for user: {}", user.getEmail());
     }
 
 }
