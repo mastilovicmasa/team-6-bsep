@@ -2,9 +2,11 @@ package com.team6.bsep.backend.service;
 
 import com.team6.bsep.backend.dto.JwtResponse;
 import com.team6.bsep.backend.dto.RegisterRequest;
+import com.team6.bsep.backend.model.PasswordResetToken;
 import com.team6.bsep.backend.model.TokenInfo;
 import com.team6.bsep.backend.model.User;
 import com.team6.bsep.backend.model.VerificationToken;
+import com.team6.bsep.backend.repository.PasswordResetTokenRepository;
 import com.team6.bsep.backend.repository.UserRepository;
 import com.team6.bsep.backend.repository.VerificationTokenRepository;
 import com.team6.bsep.backend.utils.TokenUtils;
@@ -29,6 +31,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -38,6 +41,7 @@ public class AuthService {
 
     private final UserRepository users;
     private final VerificationTokenRepository tokens;
+    private final PasswordResetTokenRepository passwordResetTokens;
     private final PasswordEncoder encoder;
     private final EmailService emailService;
 
@@ -48,6 +52,12 @@ public class AuthService {
     // za logovanje kompletnog linka u dev-u
     @Value("${app.backend-base-url:http://localhost:8080}")
     private String backendBaseUrl;
+
+    @Value("${app.reset.expiry-minutes:60}")
+    private long resetExpiryMinutes;
+
+    @Value("${app.frontend-base-url:http://localhost:4200}")
+    private String frontendBaseUrl;
 
     @Autowired
     private AuthenticationManager authenticationManager;
@@ -67,12 +77,16 @@ public class AuthService {
 
     public AuthService(UserRepository users,
                        VerificationTokenRepository tokens,
-                       PasswordEncoder encoder, EmailService emailService) {
+                       PasswordEncoder encoder,
+                       EmailService emailService,
+                       PasswordResetTokenRepository passwordResetTokens) {
         this.users = users;
         this.tokens = tokens;
         this.encoder = encoder;
         this.emailService = emailService;
+        this.passwordResetTokens = passwordResetTokens;
     }
+
 
     @Transactional
     public void register(RegisterRequest req) {
@@ -184,5 +198,49 @@ public class AuthService {
         activeTokens.put(jti, tokenInfo);
         jtiToJwtMap.put(jti, jwt);
     }
+
+    @Transactional
+    public void initiatePasswordReset(String rawEmail) {
+        var email = rawEmail == null ? "" : rawEmail.trim().toLowerCase();
+        Optional<User> maybeUser = users.findByEmail(email);
+
+        // Ako korisnik ne postoji ili nije aktivan, ne bacamo grešku - samo logujemo i "noop".
+        if (maybeUser.isEmpty()) {
+            log.info("Password reset requested for non-existing email: {}", email);
+            return;
+        }
+        var user = maybeUser.get();
+        if (user.getStatus() != com.team6.bsep.backend.model.UserStatus.ACTIVE) {
+            log.info("Password reset requested for non-active user: {}", email);
+            return;
+        }
+
+        // (Opcionalno) počisti stare neiskorišćene tokene za tog korisnika
+        passwordResetTokens.deleteByUserAndUsedAtIsNull(user);
+
+        // Generiši jednokratan, vremenski ograničen token
+        var tokenValue = UUID.randomUUID().toString();
+        var token = PasswordResetToken.builder()
+                .token(tokenValue)
+                .user(user)
+                .expiresAt(Instant.now().plus(Duration.ofMinutes(resetExpiryMinutes)))
+                .build();
+
+        passwordResetTokens.save(token);
+
+        // Link ka ANGULAR ruti
+        var link = frontendBaseUrl + "/reset-password?token=" + tokenValue;
+
+        // Pošalji email
+        try {
+            emailService.sendPasswordReset(email, link, resetExpiryMinutes);
+        } catch (org.springframework.mail.MailException ex) {
+            log.error("Failed sending reset email to {}", email, ex);
+            // Ne otkrivamo ništa klijentu; kontroler i dalje vraća 200
+        }
+
+        log.info("Password reset initiated for email: {}", email);
+    }
+
 }
 

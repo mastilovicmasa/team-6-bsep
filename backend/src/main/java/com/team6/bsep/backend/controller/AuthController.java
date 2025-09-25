@@ -1,5 +1,6 @@
 package com.team6.bsep.backend.controller;
 
+import com.team6.bsep.backend.dto.ForgotPasswordRequest;
 import com.team6.bsep.backend.dto.LoginRequest;
 import com.team6.bsep.backend.dto.RegisterRequest;
 import com.team6.bsep.backend.service.AuthService;
@@ -39,5 +40,12 @@ public class AuthController {
                 request.getRecaptchaToken()
         );
     }
+
+    @PostMapping("/forgot-password")
+    public ResponseEntity<Void> forgotPassword(@Valid @RequestBody ForgotPasswordRequest req) {
+        auth.initiatePasswordReset(req.getEmail());
+        return ResponseEntity.ok().build();
+    }
+
 
 }
