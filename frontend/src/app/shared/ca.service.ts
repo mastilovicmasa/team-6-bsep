@@ -6,7 +6,11 @@ export class CaService {
   private api = 'http://localhost:8080';
   constructor(private http: HttpClient) {}
   createRoot() {
-    return this.http.post(`${this.api}/api/admin/ca/root`, {}, { responseType: 'text' });
+    const token = localStorage.getItem('jwt');
+    const headers = new HttpHeaders({
+      Authorization: `Bearer ${token}`
+    });
+    return this.http.post(`${this.api}/api/admin/ca/root`, { }, { headers, responseType: 'text' });
   }
   getRootStatus() {
     const token = localStorage.getItem('jwt');
