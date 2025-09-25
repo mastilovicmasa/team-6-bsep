@@ -49,4 +49,15 @@ export class AuthService {
       return null;
     }
   }
+
+  forgotPassword(email: string): Observable<void> {
+    return this.http.post<void>(`${this.API}/forgot-password`, { email });
+  }
+
+  resetPassword(token: string, newPassword: string, confirmPassword: string): Observable<void> {
+    return this.http.post<void>(`${this.API}/reset-password`, {
+      token, newPassword, confirmPassword
+    });
+  }
+  
 }
