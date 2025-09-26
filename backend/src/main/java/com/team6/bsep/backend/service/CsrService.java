@@ -5,9 +5,11 @@ import com.team6.bsep.backend.dto.MyCsr;
 import com.team6.bsep.backend.dto.ParsedCsr;
 import com.team6.bsep.backend.model.CertificateAuthority;
 import com.team6.bsep.backend.model.CertificateSigningRequest;
+import com.team6.bsep.backend.model.EndEntityCertificate;
 import com.team6.bsep.backend.model.RequestStatus;
 import com.team6.bsep.backend.repository.CertificateAuthorityRepository;
 import com.team6.bsep.backend.repository.CertificateSigningRequestRepository;
+import com.team6.bsep.backend.repository.EndEntityCertificateRepository;
 import com.team6.bsep.backend.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.bouncycastle.asn1.x500.X500Name;
@@ -56,6 +58,7 @@ public class CsrService {
     private final CertificateAuthorityRepository caRepo;
     private final CertificateSigningRequestRepository requestRepo;
     private final UserRepository userRepo;
+    private final EndEntityCertificateRepository endEntityCertificateRepository;
     private final CryptoService crypto;
 
     static {
@@ -237,14 +240,26 @@ public class CsrService {
                     .setProvider(new BouncyCastleProvider())
                     .getCertificate(certHolder);
 
-            // 5. Snimi EE sertifikat (npr. PEM string u bazu)
+            // 5. Konvertuj u PEM string
             StringWriter sw = new StringWriter();
             try (JcaPEMWriter pemWriter = new JcaPEMWriter(sw)) {
                 pemWriter.writeObject(eeCert);
             }
             String certPem = sw.toString();
 
-            // ažuriraj CSR
+            // 6. Snimi EE sertifikat u bazu
+            var eeCertEntity = EndEntityCertificate.builder()
+                    .serialHex(serial.toString(16))
+                    .pem(certPem)
+                    .notBefore(notBefore.toInstant())
+                    .notAfter(notAfter.toInstant())
+                    .issuer(caEntity)
+                    .csr(csrEntity)
+                    .build();
+
+            endEntityCertificateRepository.save(eeCertEntity);
+
+            // 7. Ažuriraj CSR
             csrEntity.setStatus(RequestStatus.ISSUED);
             requestRepo.save(csrEntity);
 
@@ -255,4 +270,5 @@ public class CsrService {
             throw new RuntimeException("Failed to issue certificate: " + e.getMessage(), e);
         }
     }
+
 }
