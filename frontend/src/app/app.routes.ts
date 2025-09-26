@@ -51,6 +51,16 @@ export const routes: Routes = [
         loadComponent: () =>
           import('./csr/admin-csr/admin-csr').then(m => m.AdminRequestsComponent)
       },
+      {
+        path: 'create-ca-user',
+        loadComponent: () =>
+          import('./create-ca-user/create-ca-user').then(m => m.CreateCaUserComponent)
+      },
+      {
+        path: 'change-password',
+        loadComponent: () =>
+          import('./auth/change-password/change-password').then(m => m.ChangePasswordComponent)
+      },
       { path: '', redirectTo: 'dashboard', pathMatch: 'full' }
     ]
   },

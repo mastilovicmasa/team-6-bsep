@@ -1,9 +1,6 @@
 package com.team6.bsep.backend.controller;
 
-import com.team6.bsep.backend.dto.ForgotPasswordRequest;
-import com.team6.bsep.backend.dto.LoginRequest;
-import com.team6.bsep.backend.dto.RegisterRequest;
-import com.team6.bsep.backend.dto.ResetPasswordRequest;
+import com.team6.bsep.backend.dto.*;
 import com.team6.bsep.backend.service.AuthService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -57,9 +54,16 @@ public class AuthController {
 
     @PostMapping("/admin/create-ca-user")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<?> createCaUser(@RequestParam String email) {
-        auth.createCaUser(email);
+    public ResponseEntity<?> createCaUser(@Valid @RequestBody CreateCaUserRequest req) {
+        auth.createCaUser(req);
         return ResponseEntity.ok("CA user created and password sent to email");
+    }
+
+    @PostMapping("/change-password")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<Void> changePassword(@RequestBody ChangePasswordRequest req) {
+        auth.changePassword(req);
+        return ResponseEntity.ok().build();
     }
 
 }

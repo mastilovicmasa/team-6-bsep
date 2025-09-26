@@ -5,14 +5,16 @@ public class JwtResponse {
     private int expiresIn;
     private String jti;
     private String role;
+    private boolean mustChangePassword;
 
     public JwtResponse() {}
 
-    public JwtResponse(String token, int expiresIn, String jti, String role) {
+    public JwtResponse(String token, int expiresIn, String jti, String role, boolean mustChangePassword) {
         this.token = token;
         this.expiresIn = expiresIn;
         this.jti = jti;
         this.role = role;
+        this.mustChangePassword = mustChangePassword;
     }
 
     public String getToken() {
@@ -45,5 +47,13 @@ public class JwtResponse {
 
     public void setRole(String role) {
         this.role = role;
+    }
+
+    public boolean isMustChangePassword() {
+        return mustChangePassword;
+    }
+
+    public void setMustChangePassword(boolean mustChangePassword) {
+        this.mustChangePassword = mustChangePassword;
     }
 }

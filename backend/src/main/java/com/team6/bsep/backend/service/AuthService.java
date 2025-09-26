@@ -1,8 +1,6 @@
 package com.team6.bsep.backend.service;
 
-import com.team6.bsep.backend.dto.JwtResponse;
-import com.team6.bsep.backend.dto.RegisterRequest;
-import com.team6.bsep.backend.dto.ResetPasswordRequest;
+import com.team6.bsep.backend.dto.*;
 import com.team6.bsep.backend.model.*;
 import com.team6.bsep.backend.repository.PasswordResetTokenRepository;
 import com.team6.bsep.backend.repository.UserRepository;
@@ -17,6 +15,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -165,11 +164,6 @@ public class AuthService {
             String jti = UUID.randomUUID().toString();
             var user = users.findByEmail(email)
                     .orElseThrow(() -> new RuntimeException("User not found"));
-
-            if (user.isMustChangePassword()) {
-                return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Password change required");
-            }
-
             String jwt = tokenUtils.generateToken(user);
             int expiresIn = tokenUtils.getExpiredIn();
 
@@ -180,11 +174,12 @@ public class AuthService {
             log.info("Login successful for email: {}, IP: {}, User-Agent: {}", email,
                     request.getRemoteAddr(), request.getHeader("User-Agent"));
 
-            return ResponseEntity.ok(new JwtResponse(jwt, expiresIn, jti, role));
+            return ResponseEntity.ok(new JwtResponse(jwt, expiresIn, jti, role, user.isMustChangePassword()));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Wrong email or password");
         }
     }
+
 
     private Authentication authenticateUser(String email, String password) {
         return authenticationManager.authenticate(
@@ -266,36 +261,55 @@ public class AuthService {
     }
 
     @Transactional
-    public void createCaUser(String email) {
-        // normalizacija email-a
-        var normalizedEmail = email.trim().toLowerCase();
+    public void createCaUser(CreateCaUserRequest req) {
+        String normalized = req.email().trim().toLowerCase();
 
-        if (users.existsByEmail(normalizedEmail)) {
+        if (users.existsByEmail(normalized)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Email already registered");
         }
 
-        // 1) generiši random lozinku
-        String rawPassword = UUID.randomUUID().toString().substring(0, 10);
+        // 1. generiši random lozinku
+        String rawPassword = UUID.randomUUID().toString().substring(0, 12);
 
-        // 2) hashuj lozinku
-        String encodedPassword = encoder.encode(rawPassword);
-
-        // 3) kreiraj user-a sa rolom CA
+        // 2. kreiraj user-a sa CA rolom
         var user = User.builder()
-                .email(normalizedEmail)
-                .passwordHash(encodedPassword)
-                .role(UserRole.CA)
+                .email(normalized)
+                .firstName(req.firstName())
+                .lastName(req.lastName())
+                .organization(req.organization())
+                .passwordHash(encoder.encode(rawPassword))
+                .role(com.team6.bsep.backend.model.UserRole.CA)
                 .status(com.team6.bsep.backend.model.UserStatus.ACTIVE)
                 .mustChangePassword(true)
+                .status(UserStatus.ACTIVE)
+                .activatedAt(Instant.now())
                 .build();
 
         users.save(user);
 
-        emailService.sendCaUserPassword(normalizedEmail, rawPassword);
-
-        log.info("CA user created: {}", normalizedEmail);
+        // 3. pošalji mejl
+        emailService.sendCaUserCreated(normalized, rawPassword, req.firstName());
     }
 
+    @Transactional
+    public void changePassword(ChangePasswordRequest req) {
+        var principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        String email = (principal instanceof UserDetails ud) ? ud.getUsername() : principal.toString();
 
+        var user = users.findByEmail(email)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+
+        if (!encoder.matches(req.getOldPassword(), user.getPasswordHash())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Old password is incorrect");
+        }
+
+        if (!req.getNewPassword().equals(req.getConfirmPassword())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Passwords do not match");
+        }
+
+        user.setPasswordHash(encoder.encode(req.getNewPassword()));
+        user.setMustChangePassword(false);
+        log.info("Password changed for user {}", user.getEmail());
+    }
 }
 

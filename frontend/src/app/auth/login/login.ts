@@ -40,11 +40,18 @@ export class Login {
     this.auth.login(this.form.value as LoginRequest).subscribe({
       next: (res: JwtResponse) => {
         this.submitting = false;
-        this.successMsg = '✅ Logged in successfully!';
-        // čuvanje tokena u localStorage/sessionStorage
+
+        // čuvanje tokena i jti
         localStorage.setItem('jwt', res.token);
         localStorage.setItem('jti', res.jti);
-        this.router.navigate(['home']);
+
+        if (res.mustChangePassword) {
+          // ako je korisnik CA i mora promeniti lozinku → odmah na reset-password stranu
+          this.router.navigate(['/change-password']);
+        } else {
+          this.successMsg = 'Logged in successfully!';
+          this.router.navigate(['home']);
+        }
       },
       error: (err) => {
         this.submitting = false;
@@ -56,6 +63,7 @@ export class Login {
         this.form.patchValue({ recaptchaToken: '' });
       }
     });
+
   }
 
   onCaptchaResolved(token: string | null) {
