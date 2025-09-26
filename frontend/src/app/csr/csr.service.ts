@@ -55,7 +55,8 @@ export class CsrService {
     const headers = new HttpHeaders({
       Authorization: `Bearer ${token}`
     });
-    return this.http.get<CsrRequestDto[]>(`${this.baseUrl}/admin/csr/requests`, { headers });
+    return this.http.get<CsrRequestDto[]>(`${this.baseUrl}/csr/all`, { headers });
   }
+
 
 }

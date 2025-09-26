@@ -8,6 +8,7 @@ import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
@@ -43,4 +44,11 @@ public class CsrController {
     public ResponseEntity<List<MyCsr>> getMyRequests(Authentication auth) {
         return ResponseEntity.ok(csrService.getRequestsForUser(auth.getName()));
     }
+
+    @GetMapping("/all")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<List<MyCsr>> getAllRequests() {
+        return ResponseEntity.ok(csrService.getAllRequests());
+    }
+
 }

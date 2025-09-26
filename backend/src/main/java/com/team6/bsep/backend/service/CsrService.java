@@ -157,4 +157,8 @@ public class CsrService {
     public List<MyCsr> getRequestsForUser(String email) {
         return requestRepo.findMyRequestsByUserEmail(email);
     }
+
+    public List<MyCsr> getAllRequests() {
+        return requestRepo.findAllRequests();
+    }
 }
