@@ -66,4 +66,15 @@ export class CsrService {
     return this.http.post(`${this.baseUrl}/csr/${id}/approve`, {}, { headers });
   }
 
+  downloadCertificate(csrId: number): Observable<Blob> {
+    const token = localStorage.getItem('jwt');
+    const headers = new HttpHeaders({
+      Authorization: `Bearer ${token}`
+    });
+    return this.http.get(`${this.baseUrl}/csr/certificates/${csrId}/download`, {
+      headers,
+      responseType: 'blob'
+    });
+  }
+
 }

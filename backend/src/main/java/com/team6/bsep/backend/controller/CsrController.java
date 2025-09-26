@@ -7,6 +7,8 @@ import com.team6.bsep.backend.service.CsrService;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
@@ -62,5 +64,14 @@ public class CsrController {
         }
     }
 
+    @GetMapping("/certificates/{csrId}/download")
+    public ResponseEntity<byte[]> downloadCertificate(@PathVariable Long csrId) {
+        byte[] pemBytes = csrService.getCertificatePem(csrId);
+
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=certificate-" + csrId + ".crt")
+                .contentType(MediaType.valueOf("application/x-pem-file"))
+                .body(pemBytes);
+    }
 
 }

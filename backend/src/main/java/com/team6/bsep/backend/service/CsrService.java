@@ -309,5 +309,17 @@ public class CsrService {
         requestRepo.save(csrEntity);
     }
 
+    public EndEntityCertificate getCertificateForCsr(Long csrId) {
+        return endEntityCertificateRepository.findByCsrId(csrId)
+                .orElseThrow(() -> new RuntimeException("Certificate not found for CSR " + csrId));
+    }
+
+    @Transactional(readOnly = true)
+    public byte[] getCertificatePem(Long csrId) {
+        var cert = getCertificateForCsr(csrId);
+        return cert.getPem().getBytes(StandardCharsets.UTF_8);
+    }
+
+
 
 }

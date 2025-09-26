@@ -12,6 +12,7 @@
         <th>Duration</th>
         <th>Status</th>
         <th>Created</th>
+        <th>Actions</th>
       </tr>
     </thead>
     <tbody>
@@ -38,6 +39,13 @@
           </span>
         </td>
         <td class="mono">{{ req.createdAt | date:'medium' }}</td>
+        <td>
+          <button *ngIf="req.status === 'ISSUED'"
+                  (click)="downloadCert(req.id)"
+                  class="btn-download">
+            Download
+          </button>
+        </td>
       </tr>
     </tbody>
   </table>

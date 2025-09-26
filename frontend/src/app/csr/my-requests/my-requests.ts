@@ -28,4 +28,21 @@ export class MyRequestsComponent implements OnInit {
       }
     });
   }
+
+  downloadCert(id: number): void {
+    this.csrService.downloadCertificate(id).subscribe({
+      next: (blob) => {
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `certificate-${id}.crt`;
+        a.click();
+        window.URL.revokeObjectURL(url);
+      },
+      error: () => {
+        this.error = 'Failed to download certificate';
+      }
+    });
+  }
+
 }

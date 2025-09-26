@@ -123,3 +123,17 @@
     white-space: nowrap;
   }
 }
+
+.btn-download {
+  background: #047857; /* emerald-700 */
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+}
+.btn-download:hover {
+  background: #065f46; /* emerald-800 */
+}
