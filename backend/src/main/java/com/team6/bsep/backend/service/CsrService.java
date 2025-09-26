@@ -3,6 +3,7 @@ package com.team6.bsep.backend.service;
 import com.team6.bsep.backend.dto.CsrRequest;
 import com.team6.bsep.backend.dto.MyCsr;
 import com.team6.bsep.backend.dto.ParsedCsr;
+import com.team6.bsep.backend.model.CertificateAuthority;
 import com.team6.bsep.backend.model.CertificateSigningRequest;
 import com.team6.bsep.backend.model.RequestStatus;
 import com.team6.bsep.backend.repository.CertificateAuthorityRepository;
@@ -13,31 +14,52 @@ import org.bouncycastle.asn1.x500.X500Name;
 import org.bouncycastle.asn1.x500.RDN;
 import org.bouncycastle.asn1.x500.style.BCStyle;
 import org.bouncycastle.asn1.x500.style.IETFUtils;
-import org.bouncycastle.pkcs.PKCS10CertificationRequest;
+import org.bouncycastle.cert.X509CertificateHolder;
+import org.bouncycastle.cert.X509v3CertificateBuilder;
+import org.bouncycastle.cert.jcajce.JcaX509CertificateConverter;
+import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.bouncycastle.openssl.PEMParser;
+import org.bouncycastle.openssl.jcajce.JcaPEMWriter;
+import org.bouncycastle.operator.ContentSigner;
+import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder;
+import org.bouncycastle.pkcs.PKCS10CertificationRequest;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.FileInputStream;
 import java.io.InputStreamReader;
+import java.io.StringReader;
+import java.io.StringWriter;
+import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
+import java.security.KeyStore;
+import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.Security;
+import java.security.cert.X509Certificate;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
+import java.util.Date;
 import java.util.List;
 
 @Service
 @RequiredArgsConstructor
 public class CsrService {
+    private static final Logger log = LoggerFactory.getLogger(CsrService.class);
 
     private final CertificateAuthorityRepository caRepo;
     private final CertificateSigningRequestRepository requestRepo;
     private final UserRepository userRepo;
+    private final CryptoService crypto;
 
     static {
-        Security.addProvider(new org.bouncycastle.jce.provider.BouncyCastleProvider());
+        Security.addProvider(new BouncyCastleProvider());
     }
 
     public ParsedCsr parseAndLog(MultipartFile csrFile) throws Exception {
@@ -93,8 +115,6 @@ public class CsrService {
         }
     }
 
-
-
     private String getRdnValue(X500Name x500Name, org.bouncycastle.asn1.ASN1ObjectIdentifier field) {
         RDN[] rdns = x500Name.getRDNs(field);
         if (rdns != null && rdns.length > 0) {
@@ -135,7 +155,6 @@ public class CsrService {
         var caEntity = caRepo.findById(caInfo.getId())
                 .orElseThrow(() -> new IllegalArgumentException("CA not found by ID: " + caInfo.getId()));
 
-
         String pemText = new String(request.getCsrFile().getBytes(), StandardCharsets.UTF_8);
 
         CertificateSigningRequest entity = CertificateSigningRequest.builder()
@@ -160,5 +179,80 @@ public class CsrService {
 
     public List<MyCsr> getAllRequests() {
         return requestRepo.findAllRequests();
+    }
+
+    @Transactional
+    public void approveRequest(Long id) {
+        CertificateSigningRequest csrEntity = requestRepo.findById(id)
+                .orElseThrow(() -> new RuntimeException("CSR not found"));
+
+        if (csrEntity.getStatus() != RequestStatus.PENDING) {
+            throw new RuntimeException("CSR already processed");
+        }
+
+        try {
+            // 1. Parse CSR iz PEM stringa
+            String csrPem = csrEntity.getCsrPem();
+            PEMParser pemParser = new PEMParser(new StringReader(csrPem));
+            PKCS10CertificationRequest csr = (PKCS10CertificationRequest) pemParser.readObject();
+            pemParser.close();
+
+            // 2. Učitaj Root CA entitet i dešifruj lozinku
+            var caEntity = caRepo.findByRootTrue()
+                    .orElseThrow(() -> new RuntimeException("Root CA not found"));
+            String rootCaPassword = crypto.decrypt(caEntity.getKeystorePasswordEnc());
+
+            // 3. Učitaj Root CA keystore sa dešifrovanom lozinkom
+            KeyStore keyStore = KeyStore.getInstance("PKCS12");
+            try (FileInputStream fis = new FileInputStream(caEntity.getKeystorePath())) {
+                keyStore.load(fis, rootCaPassword.toCharArray());
+            }
+
+            PrivateKey caPrivateKey = (PrivateKey) keyStore.getKey(
+                    caEntity.getKeystoreAlias(),
+                    rootCaPassword.toCharArray()
+            );
+            X509Certificate caCert = (X509Certificate) keyStore.getCertificate(caEntity.getKeystoreAlias());
+
+            // 4. Napravi generator sertifikata
+            X500Name issuer = new X500Name(caCert.getSubjectX500Principal().getName());
+            BigInteger serial = BigInteger.valueOf(System.currentTimeMillis());
+            Date notBefore = new Date();
+            Date notAfter = Date.from(Instant.now().plus(csrEntity.getDurationInDays(), ChronoUnit.DAYS));
+
+            X509v3CertificateBuilder certBuilder = new X509v3CertificateBuilder(
+                    issuer,
+                    serial,
+                    notBefore,
+                    notAfter,
+                    csr.getSubject(),
+                    csr.getSubjectPublicKeyInfo()
+            );
+
+            ContentSigner signer = new JcaContentSignerBuilder("SHA256withRSA")
+                    .build(caPrivateKey);
+
+            X509CertificateHolder certHolder = certBuilder.build(signer);
+            X509Certificate eeCert = new JcaX509CertificateConverter()
+                    .setProvider(new BouncyCastleProvider())
+                    .getCertificate(certHolder);
+
+            // 5. Snimi EE sertifikat (npr. PEM string u bazu)
+            StringWriter sw = new StringWriter();
+            try (JcaPEMWriter pemWriter = new JcaPEMWriter(sw)) {
+                pemWriter.writeObject(eeCert);
+            }
+            String certPem = sw.toString();
+
+            // ažuriraj CSR
+            csrEntity.setStatus(RequestStatus.ISSUED);
+            requestRepo.save(csrEntity);
+
+            log.info("Issued certificate:\n{}", certPem);
+
+        } catch (Exception e) {
+            log.error("Failed to issue certificate", e);
+            throw new RuntimeException("Failed to issue certificate: " + e.getMessage(), e);
+        }
     }
 }

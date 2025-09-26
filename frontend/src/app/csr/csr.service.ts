@@ -58,5 +58,12 @@ export class CsrService {
     return this.http.get<CsrRequestDto[]>(`${this.baseUrl}/csr/all`, { headers });
   }
 
+  approveRequest(id: number): Observable<any> {
+    const token = localStorage.getItem('jwt');
+    const headers = new HttpHeaders({
+      Authorization: `Bearer ${token}`
+    });
+    return this.http.post(`${this.baseUrl}/csr/${id}/approve`, {}, { headers });
+  }
 
 }

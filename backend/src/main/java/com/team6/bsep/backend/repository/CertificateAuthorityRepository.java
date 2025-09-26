@@ -13,4 +13,5 @@ public interface CertificateAuthorityRepository extends JpaRepository<Certificat
     @Query("SELECT new com.team6.bsep.backend.dto.CaInfo(c.id, c.subjectDn, c.notBefore, c.notAfter) " +
             "FROM CertificateAuthority c WHERE c.subjectDn = :subjectDn")
     Optional<CaInfo> findProjectedBySubjectDn(String subjectDn);
+    Optional<CertificateAuthority> findByRootTrue();
 }

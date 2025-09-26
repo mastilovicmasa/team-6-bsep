@@ -51,4 +51,16 @@ public class CsrController {
         return ResponseEntity.ok(csrService.getAllRequests());
     }
 
+    @PostMapping("/{id}/approve")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<?> approveCsr(@PathVariable Long id) {
+        try {
+            csrService.approveRequest(id);
+            return ResponseEntity.ok(Map.of("message", "CSR approved and certificate issued"));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+
 }

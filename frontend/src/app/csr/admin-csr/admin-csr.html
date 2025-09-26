@@ -12,6 +12,7 @@
         <th>Duration</th>
         <th>Status</th>
         <th>Created</th>
+        <th>Actions</th>
       </tr>
     </thead>
     <tbody>
@@ -38,6 +39,14 @@
           </span>
         </td>
         <td class="mono">{{ req.createdAt | date:'medium' }}</td>
+        <td>
+        <button 
+          *ngIf="req.status === 'PENDING'" 
+          (click)="approve(req.id)"
+          class="btn-approve">
+          Approve
+        </button>
+      </td>
       </tr>
     </tbody>
   </table>

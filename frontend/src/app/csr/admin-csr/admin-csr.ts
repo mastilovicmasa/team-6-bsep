@@ -28,4 +28,19 @@ export class AdminRequestsComponent implements OnInit {
       }
     });
   }
+
+  approve(id: number): void {
+    this.csrService.approveRequest(id).subscribe({
+      next: () => {
+        // osveži listu nakon approve
+        this.requests = this.requests.map(r =>
+          r.id === id ? { ...r, status: 'ISSUED' } : r
+        );
+      },
+      error: () => {
+        this.error = 'Failed to approve CSR request';
+      }
+    });
+  }
+
 }

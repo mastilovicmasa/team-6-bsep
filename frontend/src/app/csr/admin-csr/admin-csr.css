@@ -123,3 +123,18 @@
     white-space: nowrap;
   }
 }
+
+.btn-approve {
+  background: #10b981; /* emerald-500 */
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  transition: background 0.2s;
+}
+.btn-approve:hover {
+  background: #059669; /* emerald-600 */
+}
