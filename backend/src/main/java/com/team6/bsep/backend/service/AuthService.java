@@ -2,6 +2,7 @@ package com.team6.bsep.backend.service;
 
 import com.team6.bsep.backend.dto.*;
 import com.team6.bsep.backend.model.*;
+import com.team6.bsep.backend.repository.CertificateAuthorityRepository;
 import com.team6.bsep.backend.repository.PasswordResetTokenRepository;
 import com.team6.bsep.backend.repository.UserRepository;
 import com.team6.bsep.backend.repository.VerificationTokenRepository;
@@ -27,6 +28,7 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -39,6 +41,7 @@ public class AuthService {
     private final UserRepository users;
     private final VerificationTokenRepository tokens;
     private final PasswordResetTokenRepository passwordResetTokens;
+    private final CertificateAuthorityRepository caRepo;
     private final PasswordEncoder encoder;
     private final EmailService emailService;
 
@@ -76,12 +79,14 @@ public class AuthService {
                        VerificationTokenRepository tokens,
                        PasswordEncoder encoder,
                        EmailService emailService,
-                       PasswordResetTokenRepository passwordResetTokens) {
+                       PasswordResetTokenRepository passwordResetTokens,
+                       CertificateAuthorityRepository caRepo) {
         this.users = users;
         this.tokens = tokens;
         this.encoder = encoder;
         this.emailService = emailService;
         this.passwordResetTokens = passwordResetTokens;
+        this.caRepo = caRepo;
     }
 
 
@@ -285,6 +290,17 @@ public class AuthService {
                 .activatedAt(Instant.now())
                 .build();
 
+        var caEntity = CertificateAuthority.builder()
+                .subjectDn("CN=" + req.organization() + " CA, O=" + req.organization() + ", C=RS")
+                .root(false)
+                .notBefore(Instant.now())
+                .notAfter(Instant.now().plus(365, ChronoUnit.DAYS))
+                .build();
+
+        caRepo.save(caEntity);
+
+        // 3) poveži usera i CA
+        user.setCertificateAuthority(caEntity);
         users.save(user);
 
         // 3. pošalji mejl
