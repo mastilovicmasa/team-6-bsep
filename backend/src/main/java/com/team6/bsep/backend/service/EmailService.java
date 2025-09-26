@@ -52,4 +52,26 @@ public class EmailService {
         mailSender.send(msg);
     }
 
+    public void sendCaUserPassword(String to, String rawPassword) {
+        SimpleMailMessage msg = new SimpleMailMessage();
+        msg.setFrom(from);
+        msg.setTo(to);
+        msg.setSubject("Your CA user account credentials");
+        msg.setText("""
+        Hello,
+
+        A new CA user account has been created for you.
+        You can log in with the following temporary password:
+
+        %s
+
+        For security reasons, you will be required to change this password
+        immediately upon your first login.
+
+        Best regards,
+        PKI System
+        """.formatted(rawPassword));
+        mailSender.send(msg);
+    }
+
 }

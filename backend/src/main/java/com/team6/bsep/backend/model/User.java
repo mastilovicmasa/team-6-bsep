@@ -41,6 +41,9 @@ public class User {
 
     private Instant activatedAt;
 
+    @Column(nullable = false)
+    private boolean mustChangePassword = false;
+
     @PrePersist @PreUpdate
     private void normalize() {
         if (email != null) email = email.trim().toLowerCase();

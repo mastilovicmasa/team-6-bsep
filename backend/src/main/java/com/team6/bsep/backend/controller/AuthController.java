@@ -8,6 +8,7 @@ import com.team6.bsep.backend.service.AuthService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 
@@ -52,6 +53,13 @@ public class AuthController {
     public ResponseEntity<Void> resetPassword(@Valid @RequestBody ResetPasswordRequest req) {
         auth.resetPassword(req);
         return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/admin/create-ca-user")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<?> createCaUser(@RequestParam String email) {
+        auth.createCaUser(email);
+        return ResponseEntity.ok("CA user created and password sent to email");
     }
 
 }

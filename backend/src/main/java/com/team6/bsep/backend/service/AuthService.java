@@ -3,10 +3,7 @@ package com.team6.bsep.backend.service;
 import com.team6.bsep.backend.dto.JwtResponse;
 import com.team6.bsep.backend.dto.RegisterRequest;
 import com.team6.bsep.backend.dto.ResetPasswordRequest;
-import com.team6.bsep.backend.model.PasswordResetToken;
-import com.team6.bsep.backend.model.TokenInfo;
-import com.team6.bsep.backend.model.User;
-import com.team6.bsep.backend.model.VerificationToken;
+import com.team6.bsep.backend.model.*;
 import com.team6.bsep.backend.repository.PasswordResetTokenRepository;
 import com.team6.bsep.backend.repository.UserRepository;
 import com.team6.bsep.backend.repository.VerificationTokenRepository;
@@ -168,6 +165,11 @@ public class AuthService {
             String jti = UUID.randomUUID().toString();
             var user = users.findByEmail(email)
                     .orElseThrow(() -> new RuntimeException("User not found"));
+
+            if (user.isMustChangePassword()) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).body("Password change required");
+            }
+
             String jwt = tokenUtils.generateToken(user);
             int expiresIn = tokenUtils.getExpiredIn();
 
@@ -262,6 +264,38 @@ public class AuthService {
 
         log.info("Password reset successful for user: {}", user.getEmail());
     }
+
+    @Transactional
+    public void createCaUser(String email) {
+        // normalizacija email-a
+        var normalizedEmail = email.trim().toLowerCase();
+
+        if (users.existsByEmail(normalizedEmail)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Email already registered");
+        }
+
+        // 1) generiši random lozinku
+        String rawPassword = UUID.randomUUID().toString().substring(0, 10);
+
+        // 2) hashuj lozinku
+        String encodedPassword = encoder.encode(rawPassword);
+
+        // 3) kreiraj user-a sa rolom CA
+        var user = User.builder()
+                .email(normalizedEmail)
+                .passwordHash(encodedPassword)
+                .role(UserRole.CA)
+                .status(com.team6.bsep.backend.model.UserStatus.ACTIVE)
+                .mustChangePassword(true)
+                .build();
+
+        users.save(user);
+
+        emailService.sendCaUserPassword(normalizedEmail, rawPassword);
+
+        log.info("CA user created: {}", normalizedEmail);
+    }
+
 
 }
 
