@@ -1,5 +1,4 @@
 package com.team6.bsep.backend.service;
-
 import com.team6.bsep.backend.dto.CsrRequest;
 import com.team6.bsep.backend.dto.MyCsr;
 import com.team6.bsep.backend.dto.ParsedCsr;
@@ -194,74 +193,20 @@ public class CsrService {
         }
 
         try {
-            // 1. Parse CSR iz PEM stringa
-            String csrPem = csrEntity.getCsrPem();
-            PEMParser pemParser = new PEMParser(new StringReader(csrPem));
-            PKCS10CertificationRequest csr = (PKCS10CertificationRequest) pemParser.readObject();
-            pemParser.close();
+            PKCS10CertificationRequest csr = parseCsrFromPem(csrEntity.getCsrPem());
 
-            // 2. Učitaj Root CA entitet i dešifruj lozinku
-            var caEntity = caRepo.findByRootTrue()
-                    .orElseThrow(() -> new RuntimeException("Root CA not found"));
+            var caEntity = loadRootCa();
             String rootCaPassword = crypto.decrypt(caEntity.getKeystorePasswordEnc());
 
-            // 3. Učitaj Root CA keystore sa dešifrovanom lozinkom
-            KeyStore keyStore = KeyStore.getInstance("PKCS12");
-            try (FileInputStream fis = new FileInputStream(caEntity.getKeystorePath())) {
-                keyStore.load(fis, rootCaPassword.toCharArray());
-            }
+            KeyStore keyStore = loadKeyStore(caEntity.getKeystorePath(), rootCaPassword);
+            PrivateKey caPrivateKey = getPrivateKey(keyStore, caEntity.getKeystoreAlias(), rootCaPassword);
+            X509Certificate caCert = getCertificate(keyStore, caEntity.getKeystoreAlias());
 
-            PrivateKey caPrivateKey = (PrivateKey) keyStore.getKey(
-                    caEntity.getKeystoreAlias(),
-                    rootCaPassword.toCharArray()
-            );
-            X509Certificate caCert = (X509Certificate) keyStore.getCertificate(caEntity.getKeystoreAlias());
+            X509Certificate eeCert = issueCertificate(csr, caCert, caPrivateKey, csrEntity.getDurationInDays());
+            String certPem = convertToPem(eeCert);
 
-            // 4. Napravi generator sertifikata
-            X500Name issuer = new X500Name(caCert.getSubjectX500Principal().getName());
-            BigInteger serial = BigInteger.valueOf(System.currentTimeMillis());
-            Date notBefore = new Date();
-            Date notAfter = Date.from(Instant.now().plus(csrEntity.getDurationInDays(), ChronoUnit.DAYS));
-
-            X509v3CertificateBuilder certBuilder = new X509v3CertificateBuilder(
-                    issuer,
-                    serial,
-                    notBefore,
-                    notAfter,
-                    csr.getSubject(),
-                    csr.getSubjectPublicKeyInfo()
-            );
-
-            ContentSigner signer = new JcaContentSignerBuilder("SHA256withRSA")
-                    .build(caPrivateKey);
-
-            X509CertificateHolder certHolder = certBuilder.build(signer);
-            X509Certificate eeCert = new JcaX509CertificateConverter()
-                    .setProvider(new BouncyCastleProvider())
-                    .getCertificate(certHolder);
-
-            // 5. Konvertuj u PEM string
-            StringWriter sw = new StringWriter();
-            try (JcaPEMWriter pemWriter = new JcaPEMWriter(sw)) {
-                pemWriter.writeObject(eeCert);
-            }
-            String certPem = sw.toString();
-
-            // 6. Snimi EE sertifikat u bazu
-            var eeCertEntity = EndEntityCertificate.builder()
-                    .serialHex(serial.toString(16))
-                    .pem(certPem)
-                    .notBefore(notBefore.toInstant())
-                    .notAfter(notAfter.toInstant())
-                    .issuer(caEntity)
-                    .csr(csrEntity)
-                    .build();
-
-            endEntityCertificateRepository.save(eeCertEntity);
-
-            // 7. Ažuriraj CSR
-            csrEntity.setStatus(RequestStatus.ISSUED);
-            requestRepo.save(csrEntity);
+            saveEndEntityCertificate(caEntity, csrEntity, eeCert, certPem);
+            markCsrAsIssued(csrEntity);
 
             log.info("Issued certificate:\n{}", certPem);
 
@@ -270,5 +215,80 @@ public class CsrService {
             throw new RuntimeException("Failed to issue certificate: " + e.getMessage(), e);
         }
     }
+
+
+    private PKCS10CertificationRequest parseCsrFromPem(String pem) throws Exception {
+        try (PEMParser pemParser = new PEMParser(new StringReader(pem))) {
+            return (PKCS10CertificationRequest) pemParser.readObject();
+        }
+    }
+
+    private CertificateAuthority loadRootCa() {
+        return caRepo.findByRootTrue()
+                .orElseThrow(() -> new RuntimeException("Root CA not found"));
+    }
+
+    private KeyStore loadKeyStore(String path, String password) throws Exception {
+        KeyStore keyStore = KeyStore.getInstance("PKCS12");
+        try (FileInputStream fis = new FileInputStream(path)) {
+            keyStore.load(fis, password.toCharArray());
+        }
+        return keyStore;
+    }
+
+    private PrivateKey getPrivateKey(KeyStore keyStore, String alias, String password) throws Exception {
+        return (PrivateKey) keyStore.getKey(alias, password.toCharArray());
+    }
+
+    private X509Certificate getCertificate(KeyStore keyStore, String alias) throws Exception {
+        return (X509Certificate) keyStore.getCertificate(alias);
+    }
+
+    private X509Certificate issueCertificate(PKCS10CertificationRequest csr, X509Certificate caCert,
+                                             PrivateKey caPrivateKey, int durationDays) throws Exception {
+        X500Name issuer = new X500Name(caCert.getSubjectX500Principal().getName());
+        BigInteger serial = BigInteger.valueOf(System.currentTimeMillis());
+        Date notBefore = new Date();
+        Date notAfter = Date.from(Instant.now().plus(durationDays, ChronoUnit.DAYS));
+
+        X509v3CertificateBuilder certBuilder = new X509v3CertificateBuilder(
+                issuer, serial, notBefore, notAfter, csr.getSubject(), csr.getSubjectPublicKeyInfo());
+
+        ContentSigner signer = new JcaContentSignerBuilder("SHA256withRSA").build(caPrivateKey);
+
+        X509CertificateHolder certHolder = certBuilder.build(signer);
+        return new JcaX509CertificateConverter()
+                .setProvider(new BouncyCastleProvider())
+                .getCertificate(certHolder);
+    }
+
+    private String convertToPem(X509Certificate cert) throws Exception {
+        StringWriter sw = new StringWriter();
+        try (JcaPEMWriter pemWriter = new JcaPEMWriter(sw)) {
+            pemWriter.writeObject(cert);
+        }
+        return sw.toString();
+    }
+
+    private void saveEndEntityCertificate(CertificateAuthority caEntity,
+                                          CertificateSigningRequest csrEntity,
+                                          X509Certificate eeCert, String pem) {
+        var eeCertEntity = EndEntityCertificate.builder()
+                .serialHex(eeCert.getSerialNumber().toString(16))
+                .pem(pem)
+                .notBefore(eeCert.getNotBefore().toInstant())
+                .notAfter(eeCert.getNotAfter().toInstant())
+                .issuer(caEntity)
+                .csr(csrEntity)
+                .build();
+
+        endEntityCertificateRepository.save(eeCertEntity);
+    }
+
+    private void markCsrAsIssued(CertificateSigningRequest csrEntity) {
+        csrEntity.setStatus(RequestStatus.ISSUED);
+        requestRepo.save(csrEntity);
+    }
+
 
 }
