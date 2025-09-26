@@ -1,4 +1,5 @@
 package com.team6.bsep.backend.service;
+import com.team6.bsep.backend.dto.CaInfo;
 import com.team6.bsep.backend.dto.CsrRequest;
 import com.team6.bsep.backend.dto.MyCsr;
 import com.team6.bsep.backend.dto.ParsedCsr;
@@ -126,54 +127,72 @@ public class CsrService {
     }
 
     public void processCsr(CsrRequest request) throws Exception {
-        String caName = request.getCaName();
-        int duration = request.getDurationInDays();
+        var caInfo = findCaInfo(request.getCaName());
+        validateDuration(request.getDurationInDays(), caInfo.getNotAfter());
 
-        var caInfo = caRepo.findProjectedBySubjectDn(caName)
-                .orElseThrow(() -> new IllegalArgumentException("CA not found: " + caName));
-
-        Instant now = Instant.now();
-        Instant requestedEnd = now.plus(Duration.ofDays(duration));
-        if (requestedEnd.isAfter(caInfo.getNotAfter())) {
-            throw new IllegalArgumentException(
-                    "Certificate duration exceeds CA validity (" + caInfo.getNotAfter() + ")"
-            );
-        }
-
-        // ➡️ 1. Uzimamo ulogovanog korisnika
-        Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
-        String email;
-        if (principal instanceof UserDetails userDetails) {
-            email = userDetails.getUsername();
-        } else {
-            email = principal.toString();
-        }
-
-        var userEntity = userRepo.findByEmail(email)
-                .orElseThrow(() -> new IllegalArgumentException("User not found: " + email));
+        String email = resolveCurrentUserEmail();
+        var userEntity = findUserByEmail(email);
 
         ParsedCsr parsed = parseAndLog(request.getCsrFile());
+        var caEntity = findCaById(caInfo.getId());
 
-        var caEntity = caRepo.findById(caInfo.getId())
-                .orElseThrow(() -> new IllegalArgumentException("CA not found by ID: " + caInfo.getId()));
+        CertificateSigningRequest entity = buildCsrEntity(request, parsed, caEntity, userEntity);
+        requestRepo.save(entity);
 
+        log.info("CSR saved in DB with ID={}", entity.getId());
+    }
+
+    private CaInfo findCaInfo(String caName) {
+        return caRepo.findProjectedBySubjectDn(caName)
+                .orElseThrow(() -> new IllegalArgumentException("CA not found: " + caName));
+    }
+
+    private void validateDuration(int durationDays, Instant caNotAfter) {
+        Instant requestedEnd = Instant.now().plus(Duration.ofDays(durationDays));
+        if (requestedEnd.isAfter(caNotAfter)) {
+            throw new IllegalArgumentException("Certificate duration exceeds CA validity (" + caNotAfter + ")");
+        }
+    }
+
+    private String resolveCurrentUserEmail() {
+        Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        if (principal instanceof UserDetails userDetails) {
+            return userDetails.getUsername();
+        }
+        return principal.toString();
+    }
+
+    private com.team6.bsep.backend.model.User findUserByEmail(String email) {
+        return userRepo.findByEmail(email)
+                .orElseThrow(() -> new IllegalArgumentException("User not found: " + email));
+    }
+
+    private CertificateAuthority findCaById(Long caId) {
+        return caRepo.findById(caId)
+                .orElseThrow(() -> new IllegalArgumentException("CA not found by ID: " + caId));
+    }
+
+    private CertificateSigningRequest buildCsrEntity(
+            CsrRequest request,
+            ParsedCsr parsed,
+            CertificateAuthority caEntity,
+            com.team6.bsep.backend.model.User userEntity
+    ) throws Exception {
         String pemText = new String(request.getCsrFile().getBytes(), StandardCharsets.UTF_8);
 
-        CertificateSigningRequest entity = CertificateSigningRequest.builder()
+        return CertificateSigningRequest.builder()
                 .csrPem(pemText)
-                .durationInDays(duration)
+                .durationInDays(request.getDurationInDays())
                 .status(RequestStatus.PENDING)
                 .ca(caEntity)
                 .user(userEntity)
                 .subjectCn(parsed.cn())
                 .subjectO(parsed.o())
                 .subjectC(parsed.c())
-                .createdAt(now)
+                .createdAt(Instant.now())
                 .build();
-
-        requestRepo.save(entity);
-        System.out.println("CSR saved in DB with ID=" + entity.getId());
     }
+
 
     public List<MyCsr> getRequestsForUser(String email) {
         return requestRepo.findMyRequestsByUserEmail(email);
