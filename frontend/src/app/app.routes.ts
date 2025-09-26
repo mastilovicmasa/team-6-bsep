@@ -46,6 +46,11 @@ export const routes: Routes = [
         loadComponent: () =>
           import('./csr/my-requests/my-requests').then(m => m.MyRequestsComponent)
       },
+      {
+        path: 'admin-csr',
+        loadComponent: () =>
+          import('./csr/admin-csr/admin-csr').then(m => m.AdminRequestsComponent)
+      },
       { path: '', redirectTo: 'dashboard', pathMatch: 'full' }
     ]
   },

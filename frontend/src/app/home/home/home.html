@@ -11,7 +11,14 @@
       *ngIf="role === 'ADMIN'" 
       routerLink="admin" 
       routerLinkActive="active">
-      ⚙️ Admin
+      Root Certificate
+    </a>
+
+    <a 
+      *ngIf="role === 'ADMIN'" 
+      routerLink="admin-csr" 
+      routerLinkActive="active">
+      CSR
     </a>
 
     <a 
