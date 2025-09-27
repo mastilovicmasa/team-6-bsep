@@ -61,6 +61,11 @@ export const routes: Routes = [
         loadComponent: () =>
           import('./auth/change-password/change-password').then(m => m.ChangePasswordComponent)
       },
+      {
+        path: 'ca-csr',
+        loadComponent: () =>
+          import('./csr/ca-csr/ca-csr').then(m => m.CaRequestsComponent)
+      },
       { path: '', redirectTo: 'dashboard', pathMatch: 'full' }
     ]
   },

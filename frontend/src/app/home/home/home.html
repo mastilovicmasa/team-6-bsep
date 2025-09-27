@@ -41,6 +41,13 @@
       routerLinkActive="active">
       My CSR Requests
     </a>
+
+    <a 
+      *ngIf="role === 'CA'" 
+      routerLink="ca-csr" 
+      routerLinkActive="active">
+      My CSR Requests
+    </a>
   </div>
 
   <div class="right">

@@ -320,6 +320,56 @@ public class CsrService {
         return cert.getPem().getBytes(StandardCharsets.UTF_8);
     }
 
+    @Transactional(readOnly = true)
+    public List<MyCsr> findRequestsForCaUser(String email) {
+        var user = userRepo.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found: " + email));
+
+        var ca = user.getCertificateAuthority();
+        if (ca == null) {
+            throw new RuntimeException("User is not linked to any Certificate Authority");
+        }
+
+        return requestRepo.findByCaId(ca.getId());
+    }
+
+    @Transactional
+    public void approveRequestAsCa(Long csrId, String email) {
+        var user = userRepo.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found: " + email));
+
+        var ca = user.getCertificateAuthority();
+        if (ca == null) {
+            throw new RuntimeException("User is not linked to any Certificate Authority");
+        }
+
+        // sad koristiš ca entitet i njegov keystore da izdaš sertifikat
+        CertificateSigningRequest csrEntity = requestRepo.findById(csrId)
+                .orElseThrow(() -> new RuntimeException("CSR not found"));
+
+        if (csrEntity.getStatus() != RequestStatus.PENDING) {
+            throw new RuntimeException("CSR already processed");
+        }
+
+        try {
+            // isto kao approveRequest, ali sa CA korisnikom
+            PKCS10CertificationRequest csr = parseCsrFromPem(csrEntity.getCsrPem());
+
+            String caPassword = crypto.decrypt(ca.getKeystorePasswordEnc());
+            KeyStore keyStore = loadKeyStore(ca.getKeystorePath(), caPassword);
+            PrivateKey caPrivateKey = getPrivateKey(keyStore, ca.getKeystoreAlias(), caPassword);
+            X509Certificate caCert = getCertificate(keyStore, ca.getKeystoreAlias());
+
+            X509Certificate eeCert = issueCertificate(csr, caCert, caPrivateKey, csrEntity.getDurationInDays());
+            String certPem = convertToPem(eeCert);
+
+            saveEndEntityCertificate(ca, csrEntity, eeCert, certPem);
+            markCsrAsIssued(csrEntity);
+
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to issue certificate by CA: " + e.getMessage(), e);
+        }
+    }
 
 
 }

@@ -77,4 +77,18 @@ export class CsrService {
     });
   }
 
+  getMyCaRequests(): Observable<CsrRequestDto[]> {
+    const token = localStorage.getItem('jwt');
+    return this.http.get<CsrRequestDto[]>(`${this.baseUrl}/csr/ca/my-requests`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+  }
+
+  approveAsCa(id: number): Observable<void> {
+    const token = localStorage.getItem('jwt');
+    return this.http.post<void>(`${this.baseUrl}/csr/ca/approve/${id}`, {}, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+  }
+
 }

@@ -3,6 +3,7 @@ package com.team6.bsep.backend.controller;
 import com.team6.bsep.backend.dto.CsrRequest;
 import com.team6.bsep.backend.dto.MyCsr;
 import com.team6.bsep.backend.model.CertificateSigningRequest;
+import com.team6.bsep.backend.model.User;
 import com.team6.bsep.backend.service.CsrService;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
@@ -73,5 +74,22 @@ public class CsrController {
                 .contentType(MediaType.valueOf("application/x-pem-file"))
                 .body(pemBytes);
     }
+
+    @GetMapping("/ca/my-requests")
+    @PreAuthorize("hasRole('CA')")
+    public ResponseEntity<List<MyCsr>> getMyRequestsCa(Authentication auth) {
+        String email = auth.getName(); // username iz tokena
+        var requests = csrService.findRequestsForCaUser(email);
+        return ResponseEntity.ok(requests);
+    }
+
+    @PostMapping("/ca/approve/{id}")
+    @PreAuthorize("hasRole('CA')")
+    public ResponseEntity<Void> approveAsCa(@PathVariable Long id, Authentication auth) {
+        String email = auth.getName();
+        csrService.approveRequestAsCa(id, email);
+        return ResponseEntity.ok().build();
+    }
+
 
 }

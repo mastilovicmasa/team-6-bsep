@@ -44,6 +44,7 @@ public class AuthService {
     private final CertificateAuthorityRepository caRepo;
     private final PasswordEncoder encoder;
     private final EmailService emailService;
+    private final CryptoService cryptoService;
 
     // koliko traje aktivacioni link (u satima)
     @Value("${app.activation.expiry-hours:24}")
@@ -80,13 +81,15 @@ public class AuthService {
                        PasswordEncoder encoder,
                        EmailService emailService,
                        PasswordResetTokenRepository passwordResetTokens,
-                       CertificateAuthorityRepository caRepo) {
+                       CertificateAuthorityRepository caRepo,
+                       CryptoService cryptoService) {
         this.users = users;
         this.tokens = tokens;
         this.encoder = encoder;
         this.emailService = emailService;
         this.passwordResetTokens = passwordResetTokens;
         this.caRepo = caRepo;
+        this.cryptoService = cryptoService;
     }
 
 
@@ -179,10 +182,16 @@ public class AuthService {
             log.info("Login successful for email: {}, IP: {}, User-Agent: {}", email,
                     request.getRemoteAddr(), request.getHeader("User-Agent"));
 
+            log.info("Password check: raw={}, hash={}, match={}",
+                    password, user.getPasswordHash(), encoder.matches(password, user.getPasswordHash()));
+
+
             return ResponseEntity.ok(new JwtResponse(jwt, expiresIn, jti, role, user.isMustChangePassword()));
         } catch (Exception e) {
+            log.error("Login failed for {}: {}", email, e.getClass().getName(), e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Wrong email or password");
         }
+
     }
 
 
@@ -273,39 +282,57 @@ public class AuthService {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Email already registered");
         }
 
-        // 1. generiši random lozinku
+        // 1. generiši random lozinku za login
         String rawPassword = UUID.randomUUID().toString().substring(0, 12);
 
-        // 2. kreiraj user-a sa CA rolom
+        // 2. generiši random lozinku za keystore
+        String ksPassword = UUID.randomUUID().toString();
+        String ksPasswordEnc = cryptoService.encrypt(ksPassword);
+
+        // 3. napravi keystore fajl za ovog CA
+        String alias = normalized + "-ca";
+        String path = "data/keystores/" + alias + ".p12";
+        try {
+            cryptoService.createKeystore(path, alias, ksPassword);
+            // ^ ovo treba da napravi .p12 sa tim passwordom i aliasom
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to create CA keystore", e);
+        }
+
+        // 4. kreiraj user-a sa CA rolom
         var user = User.builder()
                 .email(normalized)
                 .firstName(req.firstName())
                 .lastName(req.lastName())
                 .organization(req.organization())
                 .passwordHash(encoder.encode(rawPassword))
-                .role(com.team6.bsep.backend.model.UserRole.CA)
-                .status(com.team6.bsep.backend.model.UserStatus.ACTIVE)
-                .mustChangePassword(true)
+                .role(UserRole.CA)
                 .status(UserStatus.ACTIVE)
+                .mustChangePassword(true)
                 .activatedAt(Instant.now())
                 .build();
 
+        // 5. kreiraj CA entitet
         var caEntity = CertificateAuthority.builder()
                 .subjectDn("CN=" + req.organization() + " CA, O=" + req.organization() + ", C=RS")
                 .root(false)
                 .notBefore(Instant.now())
                 .notAfter(Instant.now().plus(365, ChronoUnit.DAYS))
+                .keystorePath(path)
+                .keystoreAlias(alias)
+                .keystorePasswordEnc(ksPasswordEnc) // enkriptovana lozinka!
                 .build();
 
         caRepo.save(caEntity);
 
-        // 3) poveži usera i CA
+        // 6. poveži usera i CA
         user.setCertificateAuthority(caEntity);
         users.save(user);
 
-        // 3. pošalji mejl
+        // 7. pošalji mejl useru
         emailService.sendCaUserCreated(normalized, rawPassword, req.firstName());
     }
+
 
     @Transactional
     public void changePassword(ChangePasswordRequest req) {

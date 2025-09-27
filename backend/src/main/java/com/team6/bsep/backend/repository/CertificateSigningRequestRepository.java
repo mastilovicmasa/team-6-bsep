@@ -19,4 +19,5 @@ public interface CertificateSigningRequestRepository extends JpaRepository<Certi
             "FROM CertificateSigningRequest r")
     List<MyCsr> findAllRequests();
 
+    List<MyCsr> findByCaId(Long caId);
 }
