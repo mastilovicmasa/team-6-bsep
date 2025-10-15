@@ -38,6 +38,10 @@ public class CertificateSigningRequest {
 
     private Instant createdAt;
 
+    @ManyToOne(optional = false)
+    private User user;
+
+
     public Long getId() {
         return id;
     }
@@ -108,5 +112,13 @@ public class CertificateSigningRequest {
 
     public void setCreatedAt(Instant createdAt) {
         this.createdAt = createdAt;
+    }
+
+    public User getUser() {
+        return user;
+    }
+
+    public void setUser(User user) {
+        this.user = user;
     }
 }

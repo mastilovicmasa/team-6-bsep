@@ -22,6 +22,14 @@ export interface JwtResponse {
   expiresIn: number;
   jti: string;
   role: string;
+  mustChangePassword: boolean
+}
+
+export interface CreateCaUserRequest {
+  email: string;
+  firstName: string;
+  lastName: string;
+  organization: string;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -49,4 +57,30 @@ export class AuthService {
       return null;
     }
   }
+
+  forgotPassword(email: string): Observable<void> {
+    return this.http.post<void>(`${this.API}/forgot-password`, { email });
+  }
+
+  resetPassword(token: string, newPassword: string, confirmPassword: string): Observable<void> {
+    return this.http.post<void>(`${this.API}/reset-password`, {
+      token, newPassword, confirmPassword
+    });
+  }
+
+  createCaUser(payload: CreateCaUserRequest): Observable<string> {
+    const token = localStorage.getItem('jwt');
+    return this.http.post(`${this.API}/admin/create-ca-user`, payload, {
+      headers: { Authorization: `Bearer ${token}` },
+      responseType: 'text'  
+    });
+  }
+
+  changePassword(oldPw: string, newPw: string, confirmPw: string): Observable<void> {
+    const token = localStorage.getItem('jwt');
+    return this.http.post<void>(`${this.API}/change-password`,
+      { oldPassword: oldPw, newPassword: newPw, confirmPassword: confirmPw },
+      { headers: { Authorization: `Bearer ${token}` } });
+  }
+
 }

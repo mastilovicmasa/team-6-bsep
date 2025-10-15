@@ -41,6 +41,13 @@ public class User {
 
     private Instant activatedAt;
 
+    @Column(nullable = false)
+    private boolean mustChangePassword = false;
+
+    @ManyToOne
+    @JoinColumn(name = "ca_id")
+    private CertificateAuthority certificateAuthority;
+
     @PrePersist @PreUpdate
     private void normalize() {
         if (email != null) email = email.trim().toLowerCase();

@@ -12,6 +12,16 @@ export const routes: Routes = [
       import('./auth/login/login').then(m => m.Login)
   },
   {
+  path: 'forgot-password',
+  loadComponent: () =>
+    import('./auth/forgot-password/forgot-password').then(m => m.ForgotPassword)
+  },
+  {
+    path: 'reset-password',
+    loadComponent: () =>
+      import('./auth/reset-password/reset-password').then(m => m.ResetPassword)
+  },
+  {
     path: '',
     loadComponent: () =>
       import('./home/home/home').then(m => m.HomeComponent),
@@ -30,6 +40,31 @@ export const routes: Routes = [
         path: 'csr-upload',
         loadComponent: () =>
           import('./csr/csr-upload/csr-upload').then(m => m.CsrUploadComponent)
+      },
+      {
+        path: 'my-requests',
+        loadComponent: () =>
+          import('./csr/my-requests/my-requests').then(m => m.MyRequestsComponent)
+      },
+      {
+        path: 'admin-csr',
+        loadComponent: () =>
+          import('./csr/admin-csr/admin-csr').then(m => m.AdminRequestsComponent)
+      },
+      {
+        path: 'create-ca-user',
+        loadComponent: () =>
+          import('./create-ca-user/create-ca-user').then(m => m.CreateCaUserComponent)
+      },
+      {
+        path: 'change-password',
+        loadComponent: () =>
+          import('./auth/change-password/change-password').then(m => m.ChangePasswordComponent)
+      },
+      {
+        path: 'ca-csr',
+        loadComponent: () =>
+          import('./csr/ca-csr/ca-csr').then(m => m.CaRequestsComponent)
       },
       { path: '', redirectTo: 'dashboard', pathMatch: 'full' }
     ]

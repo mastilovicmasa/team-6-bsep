@@ -32,4 +32,41 @@ public class EmailService {
                 """.formatted(activationLink));
         mailSender.send(msg);
     }
+
+    public void sendPasswordReset(String to, String resetLink, long expiryMinutes) {
+        SimpleMailMessage msg = new SimpleMailMessage();
+        msg.setFrom(from);
+        msg.setTo(to);
+        msg.setSubject("Reset your password");
+        msg.setText("""
+            Hello,
+
+            A password reset was requested for your account.
+            To reset your password, please click the link below:
+
+            %s
+
+            The link is valid for %d minutes and can be used only once.
+            If you did not request a password reset, you can safely ignore this message.
+            """.formatted(resetLink, expiryMinutes));
+        mailSender.send(msg);
+    }
+
+    public void sendCaUserCreated(String to, String tempPassword, String firstName) {
+        SimpleMailMessage msg = new SimpleMailMessage();
+        msg.setFrom(from);
+        msg.setTo(to);
+        msg.setSubject("Your CA user account");
+        msg.setText("""
+            Hello %s,
+
+            An administrator has created a CA user account for you.
+            Your temporary password is:
+
+            %s
+
+            Please log in and change your password immediately.
+            """.formatted(firstName, tempPassword));
+        mailSender.send(msg);
+    }
 }

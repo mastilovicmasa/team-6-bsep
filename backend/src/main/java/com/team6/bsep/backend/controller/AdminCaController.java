@@ -17,7 +17,7 @@ public class AdminCaController {
     private final RootCaService rootCaService;
     private final CertificateAuthorityRepository caRepo;
 
-    //@PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     @PostMapping("/root")
     public ResponseEntity<?> createRoot() throws Exception {
         if (caRepo.existsByRootTrue()) {

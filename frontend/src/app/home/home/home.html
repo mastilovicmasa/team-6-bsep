@@ -11,7 +11,21 @@
       *ngIf="role === 'ADMIN'" 
       routerLink="admin" 
       routerLinkActive="active">
-      ⚙️ Admin
+      Root Certificate
+    </a>
+
+    <a 
+      *ngIf="role === 'ADMIN'" 
+      routerLink="admin-csr" 
+      routerLinkActive="active">
+      CSR
+    </a>
+
+    <a 
+      *ngIf="role === 'ADMIN'" 
+      routerLink="create-ca-user" 
+      routerLinkActive="active">
+      Add CA Users
     </a>
 
     <a 
@@ -19,6 +33,20 @@
       routerLink="csr-upload" 
       routerLinkActive="active">
       📄 CSR Upload
+    </a>
+
+    <a 
+      *ngIf="role === 'USER'" 
+      routerLink="my-requests" 
+      routerLinkActive="active">
+      My CSR Requests
+    </a>
+
+    <a 
+      *ngIf="role === 'CA'" 
+      routerLink="ca-csr" 
+      routerLinkActive="active">
+      My CSR Requests
     </a>
   </div>
 

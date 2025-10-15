@@ -2,6 +2,9 @@ import { Component, inject, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ReactiveFormsModule, FormBuilder, Validators } from '@angular/forms';
 import { CsrService, CaOption } from '../csr.service';
+import Swal from 'sweetalert2';
+import { Router } from '@angular/router';
+
 
 @Component({
   selector: 'app-csr-upload',
@@ -13,6 +16,7 @@ import { CsrService, CaOption } from '../csr.service';
 export class CsrUploadComponent implements OnInit {
   private fb = inject(FormBuilder);
   private csrService = inject(CsrService);
+  private router = inject(Router);
 
   csrFile: File | null = null;
   submitting = false;
@@ -91,11 +95,23 @@ export class CsrUploadComponent implements OnInit {
     this.csrService.uploadCsr(formData).subscribe({
       next: () => {
         this.submitting = false;
-        this.successMsg = '✅ CSR uploaded successfully!';
+        Swal.fire({
+          icon: 'success',
+          title: 'Success',
+          text: 'CSR uploaded successfully!',
+          confirmButtonText: 'OK'
+        }).then(() => {
+          this.router.navigate(['/my-requests']);
+        });
       },
       error: (err) => {
         this.submitting = false;
-        this.errorMsg = err?.error || '❌ Upload failed';
+        Swal.fire({
+          icon: 'error',
+          title: 'Upload failed',
+          text: err?.error || '❌ Upload failed',
+          confirmButtonText: 'OK'
+        });
       }
     });
   }

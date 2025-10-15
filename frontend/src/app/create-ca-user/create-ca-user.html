@@ -1,0 +1,29 @@
+<div class="panel">
+  <h2>Create CA User</h2>
+  <form [formGroup]="form" (ngSubmit)="submit()">
+    <div>
+      <label>Email</label>
+      <input type="email" formControlName="email" />
+    </div>
+
+    <div>
+      <label>First Name</label>
+      <input type="text" formControlName="firstName" />
+    </div>
+
+    <div>
+      <label>Last Name</label>
+      <input type="text" formControlName="lastName" />
+    </div>
+
+    <div>
+      <label>Organization</label>
+      <input type="text" formControlName="organization" />
+    </div>
+
+    <button type="submit" [disabled]="form.invalid">Create</button>
+  </form>
+
+  <div *ngIf="success" class="success">{{ success }}</div>
+  <div *ngIf="error" class="error">{{ error }}</div>
+</div>

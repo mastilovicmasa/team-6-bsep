@@ -1,0 +1,139 @@
+:host {
+  display: block;
+  padding: 16px;
+  color: #1f2937; /* gray-800 */
+  background: #fafafa;
+}
+
+.page-title {
+  margin: 0 0 12px;
+  font-weight: 700;
+  letter-spacing: .2px;
+}
+
+.panel {
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 6px 20px rgba(0,0,0,.06);
+  padding: 16px;
+  overflow: hidden;
+}
+
+.info {
+  padding: 10px 12px;
+  border-radius: 8px;
+  margin-bottom: 12px;
+  font-size: 14px;
+}
+.info.loading {
+  background: #eff6ff;      /* blue-50 */
+  color: #1d4ed8;           /* blue-700 */
+  border: 1px solid #bfdbfe;/* blue-200 */
+}
+.info.error {
+  background: #fef2f2;      /* red-50 */
+  color: #b91c1c;           /* red-700 */
+  border: 1px solid #fecaca;/* red-200 */
+}
+
+.table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 14px;
+}
+
+.table thead th {
+  text-align: left;
+  font-weight: 600;
+  color: #374151; /* gray-700 */
+  background: #f9fafb; /* gray-50 */
+  border-bottom: 1px solid #e5e7eb; /* gray-200 */
+  padding: 12px;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.table tbody td {
+  padding: 12px;
+  border-bottom: 1px solid #f1f5f9; /* slate-100 */
+  vertical-align: middle;
+}
+
+.table tbody tr:hover {
+  background: #fcfcfd;
+}
+
+.subject {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.subject .cn { font-weight: 600; }
+.subject .org { color: #4b5563; } /* gray-600 */
+.subject .cc  { color: #6b7280; font-variant: small-caps; } /* gray-500 */
+.subject .slash { color: #9ca3af; } /* gray-400 */
+
+.mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  color: #334155; /* slate-700 */
+}
+
+.badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 9999px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: .3px;
+  text-transform: uppercase;
+  border: 1px solid transparent;
+}
+
+/* status varijante */
+.badge-pending {
+  background: #fff7ed;   /* orange-50 */
+  color: #c2410c;        /* orange-700 */
+  border-color: #fed7aa; /* orange-200 */
+}
+.badge-issued {
+  background: #ecfdf5;   /* emerald-50 */
+  color: #047857;        /* emerald-700 */
+  border-color: #a7f3d0; /* emerald-200 */
+}
+.badge-rejected {
+  background: #fef2f2;   /* red-50 */
+  color: #b91c1c;        /* red-700 */
+  border-color: #fecaca; /* red-200 */
+}
+
+.empty {
+  margin: 8px 4px 0;
+  color: #6b7280; /* gray-500 */
+}
+
+/* responsive – tabla u scroll kontejneru na malim ekranima */
+@media (max-width: 700px) {
+  .panel { padding: 12px; }
+  .table {
+    display: block;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+}
+
+.btn-download {
+  background: #047857; /* emerald-700 */
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+}
+.btn-download:hover {
+  background: #065f46; /* emerald-800 */
+}

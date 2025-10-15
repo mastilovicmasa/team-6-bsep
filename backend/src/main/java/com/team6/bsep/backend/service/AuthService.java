@@ -1,10 +1,9 @@
 package com.team6.bsep.backend.service;
 
-import com.team6.bsep.backend.dto.JwtResponse;
-import com.team6.bsep.backend.dto.RegisterRequest;
-import com.team6.bsep.backend.model.TokenInfo;
-import com.team6.bsep.backend.model.User;
-import com.team6.bsep.backend.model.VerificationToken;
+import com.team6.bsep.backend.dto.*;
+import com.team6.bsep.backend.model.*;
+import com.team6.bsep.backend.repository.CertificateAuthorityRepository;
+import com.team6.bsep.backend.repository.PasswordResetTokenRepository;
 import com.team6.bsep.backend.repository.UserRepository;
 import com.team6.bsep.backend.repository.VerificationTokenRepository;
 import com.team6.bsep.backend.utils.TokenUtils;
@@ -17,6 +16,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,7 +28,9 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -38,8 +40,11 @@ public class AuthService {
 
     private final UserRepository users;
     private final VerificationTokenRepository tokens;
+    private final PasswordResetTokenRepository passwordResetTokens;
+    private final CertificateAuthorityRepository caRepo;
     private final PasswordEncoder encoder;
     private final EmailService emailService;
+    private final CryptoService cryptoService;
 
     // koliko traje aktivacioni link (u satima)
     @Value("${app.activation.expiry-hours:24}")
@@ -48,6 +53,12 @@ public class AuthService {
     // za logovanje kompletnog linka u dev-u
     @Value("${app.backend-base-url:http://localhost:8080}")
     private String backendBaseUrl;
+
+    @Value("${app.reset.expiry-minutes:60}")
+    private long resetExpiryMinutes;
+
+    @Value("${app.frontend-base-url:http://localhost:4200}")
+    private String frontendBaseUrl; //posto link iz mejla mora da odvede na Angular formu
 
     @Autowired
     private AuthenticationManager authenticationManager;
@@ -67,12 +78,20 @@ public class AuthService {
 
     public AuthService(UserRepository users,
                        VerificationTokenRepository tokens,
-                       PasswordEncoder encoder, EmailService emailService) {
+                       PasswordEncoder encoder,
+                       EmailService emailService,
+                       PasswordResetTokenRepository passwordResetTokens,
+                       CertificateAuthorityRepository caRepo,
+                       CryptoService cryptoService) {
         this.users = users;
         this.tokens = tokens;
         this.encoder = encoder;
         this.emailService = emailService;
+        this.passwordResetTokens = passwordResetTokens;
+        this.caRepo = caRepo;
+        this.cryptoService = cryptoService;
     }
+
 
     @Transactional
     public void register(RegisterRequest req) {
@@ -163,11 +182,18 @@ public class AuthService {
             log.info("Login successful for email: {}, IP: {}, User-Agent: {}", email,
                     request.getRemoteAddr(), request.getHeader("User-Agent"));
 
-            return ResponseEntity.ok(new JwtResponse(jwt, expiresIn, jti, role));
+            log.info("Password check: raw={}, hash={}, match={}",
+                    password, user.getPasswordHash(), encoder.matches(password, user.getPasswordHash()));
+
+
+            return ResponseEntity.ok(new JwtResponse(jwt, expiresIn, jti, role, user.isMustChangePassword()));
         } catch (Exception e) {
+            log.error("Login failed for {}: {}", email, e.getClass().getName(), e.getMessage(), e);
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Wrong email or password");
         }
+
     }
+
 
     private Authentication authenticateUser(String email, String password) {
         return authenticationManager.authenticate(
@@ -183,6 +209,150 @@ public class AuthService {
         );
         activeTokens.put(jti, tokenInfo);
         jtiToJwtMap.put(jti, jwt);
+    }
+
+    @Transactional
+    public void initiatePasswordReset(String rawEmail) {
+        var email = rawEmail == null ? "" : rawEmail.trim().toLowerCase();
+        Optional<User> maybeUser = users.findByEmail(email);
+
+        if (maybeUser.isEmpty()) {
+            log.info("Password reset requested for non-existing email: {}", email);
+            return;
+        }
+        var user = maybeUser.get();
+        if (user.getStatus() != com.team6.bsep.backend.model.UserStatus.ACTIVE) {
+            log.info("Password reset requested for non-active user: {}", email);
+            return;
+        }
+
+        passwordResetTokens.deleteByUserAndUsedAtIsNull(user);
+
+        var tokenValue = UUID.randomUUID().toString();
+        var token = PasswordResetToken.builder()
+                .token(tokenValue)
+                .user(user)
+                .expiresAt(Instant.now().plus(Duration.ofMinutes(resetExpiryMinutes)))
+                .build();
+
+        passwordResetTokens.save(token);
+
+        var link = frontendBaseUrl + "/reset-password?token=" + tokenValue;
+
+        try {
+            emailService.sendPasswordReset(email, link, resetExpiryMinutes);
+        } catch (org.springframework.mail.MailException ex) {
+            log.error("Failed sending reset email to {}", email, ex);
+            // Ne otkrivamo ništa klijentu; kontroler i dalje vraća 200
+        }
+
+        log.info("Password reset initiated for email: {}", email);
+    }
+
+    @Transactional
+    public void resetPassword(ResetPasswordRequest req) {
+        if (!req.getNewPassword().equals(req.getConfirmPassword())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Passwords do not match");
+        }
+
+        var token = passwordResetTokens.findByToken(req.getToken())
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid token"));
+
+        if (token.getUsedAt() != null) {
+            throw new ResponseStatusException(HttpStatus.GONE, "Token already used");
+        }
+
+        if (Instant.now().isAfter(token.getExpiresAt())) {
+            throw new ResponseStatusException(HttpStatus.GONE, "Token expired");
+        }
+
+        var user = token.getUser();
+        user.setPasswordHash(encoder.encode(req.getNewPassword()));
+
+        token.setUsedAt(Instant.now());
+
+        log.info("Password reset successful for user: {}", user.getEmail());
+    }
+
+    @Transactional
+    public void createCaUser(CreateCaUserRequest req) {
+        String normalized = req.email().trim().toLowerCase();
+
+        if (users.existsByEmail(normalized)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Email already registered");
+        }
+
+        // 1. generiši random lozinku za login
+        String rawPassword = UUID.randomUUID().toString().substring(0, 12);
+
+        // 2. generiši random lozinku za keystore
+        String ksPassword = UUID.randomUUID().toString();
+        String ksPasswordEnc = cryptoService.encrypt(ksPassword);
+
+        // 3. napravi keystore fajl za ovog CA
+        String alias = normalized + "-ca";
+        String path = "data/keystores/" + alias + ".p12";
+        try {
+            cryptoService.createKeystore(path, alias, ksPassword);
+            // ^ ovo treba da napravi .p12 sa tim passwordom i aliasom
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to create CA keystore", e);
+        }
+
+        // 4. kreiraj user-a sa CA rolom
+        var user = User.builder()
+                .email(normalized)
+                .firstName(req.firstName())
+                .lastName(req.lastName())
+                .organization(req.organization())
+                .passwordHash(encoder.encode(rawPassword))
+                .role(UserRole.CA)
+                .status(UserStatus.ACTIVE)
+                .mustChangePassword(true)
+                .activatedAt(Instant.now())
+                .build();
+
+        // 5. kreiraj CA entitet
+        var caEntity = CertificateAuthority.builder()
+                .subjectDn("CN=" + req.organization() + " CA, O=" + req.organization() + ", C=RS")
+                .root(false)
+                .notBefore(Instant.now())
+                .notAfter(Instant.now().plus(365, ChronoUnit.DAYS))
+                .keystorePath(path)
+                .keystoreAlias(alias)
+                .keystorePasswordEnc(ksPasswordEnc) // enkriptovana lozinka!
+                .build();
+
+        caRepo.save(caEntity);
+
+        // 6. poveži usera i CA
+        user.setCertificateAuthority(caEntity);
+        users.save(user);
+
+        // 7. pošalji mejl useru
+        emailService.sendCaUserCreated(normalized, rawPassword, req.firstName());
+    }
+
+
+    @Transactional
+    public void changePassword(ChangePasswordRequest req) {
+        var principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        String email = (principal instanceof UserDetails ud) ? ud.getUsername() : principal.toString();
+
+        var user = users.findByEmail(email)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+
+        if (!encoder.matches(req.getOldPassword(), user.getPasswordHash())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Old password is incorrect");
+        }
+
+        if (!req.getNewPassword().equals(req.getConfirmPassword())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Passwords do not match");
+        }
+
+        user.setPasswordHash(encoder.encode(req.getNewPassword()));
+        user.setMustChangePassword(false);
+        log.info("Password changed for user {}", user.getEmail());
     }
 }
 

@@ -1,0 +1,56 @@
+<h2 class="page-title">📄 My CSR Requests</h2>
+
+<div class="panel">
+  <div *ngIf="loading" class="info loading">Loading…</div>
+  <div *ngIf="error" class="info error">{{ error }}</div>
+
+  <table *ngIf="!loading && !error && requests.length > 0" class="table">
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Subject</th>
+        <th>Duration</th>
+        <th>Status</th>
+        <th>Created</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr *ngFor="let req of requests">
+        <td class="mono">#{{ req.id }}</td>
+        <td>
+          <div class="subject">
+            <span class="cn">{{ req.subjectCn }}</span>
+            <span class="slash">/</span>
+            <span class="org">{{ req.subjectO }}</span>
+            <span class="slash">/</span>
+            <span class="cc">{{ req.subjectC }}</span>
+          </div>
+        </td>
+        <td>{{ req.durationInDays }} days</td>
+        <td>
+          <span class="badge"
+                [ngClass]="{
+                  'badge-pending': req.status === 'PENDING',
+                  'badge-issued': req.status === 'ISSUED',
+                  'badge-rejected': req.status === 'REJECTED'
+                }">
+            {{ req.status }}
+          </span>
+        </td>
+        <td class="mono">{{ req.createdAt | date:'medium' }}</td>
+        <td>
+          <button *ngIf="req.status === 'ISSUED'"
+                  (click)="downloadCert(req.id)"
+                  class="btn-download">
+            Download
+          </button>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+
+  <p *ngIf="!loading && !error && requests.length === 0" class="empty">
+    No CSR requests found.
+  </p>
+</div>
