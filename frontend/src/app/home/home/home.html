@@ -48,6 +48,13 @@
       routerLinkActive="active">
       My CSR Requests
     </a>
+
+    <a 
+      *ngIf="role !== 'USER'" 
+      routerLink="ca-intermediate" 
+      routerLinkActive="active">
+      Issue Intermediate Certificate
+    </a>
   </div>
 
   <div class="right">

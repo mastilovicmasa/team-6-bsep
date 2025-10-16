@@ -19,4 +19,22 @@ export class CaService {
     });
     return this.http.get<any>(`${this.api}/api/dev/ca/root/status`, { headers });
   }
+
+   getAllCas() {
+    const token = localStorage.getItem('jwt');
+    const headers = new HttpHeaders({
+      Authorization: `Bearer ${token}`
+    });
+    return this.http.get<any[]>(`${this.api}/api/ca/list`, { headers });
+  }
+
+  issueIntermediate(request: any) {
+    const token = localStorage.getItem('jwt');
+    const headers = new HttpHeaders({
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    });
+    return this.http.post<any>(`${this.api}/api/ca/issue-intermediate`, request, { headers });
+  }
+
 }

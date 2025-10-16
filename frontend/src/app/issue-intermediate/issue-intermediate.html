@@ -1,0 +1,51 @@
+<div class="container mt-4">
+  <h2>Issue Intermediate Certificate</h2>
+
+  <form (ngSubmit)="issueCertificate()" #form="ngForm">
+
+    <div class="mb-3">
+      <label for="issuer" class="form-label">Issuer CA</label>
+      <select id="issuer" class="form-select" [(ngModel)]="request.issuerId" name="issuerId" required>
+        <option *ngFor="let ca of cas" [value]="ca.id">
+          {{ ca.subjectDn }} (valid to: {{ ca.notAfter | date }})
+        </option>
+      </select>
+    </div>
+
+    <div class="mb-3">
+      <label class="form-label">Common Name (CN)</label>
+      <input class="form-control" [(ngModel)]="request.commonName" name="commonName" required />
+    </div>
+
+    <div class="mb-3">
+      <label class="form-label">Organization (O)</label>
+      <input class="form-control" [(ngModel)]="request.organization" name="organization" />
+    </div>
+
+    <div class="mb-3">
+      <label class="form-label">Organizational Unit (OU)</label>
+      <input class="form-control" [(ngModel)]="request.organizationalUnit" name="organizationalUnit" />
+    </div>
+
+    <div class="mb-3">
+      <label class="form-label">Country (C)</label>
+      <input class="form-control" [(ngModel)]="request.country" name="country" maxlength="2" />
+    </div>
+
+    <div class="mb-3">
+      <label class="form-label">Email</label>
+      <input class="form-control" [(ngModel)]="request.email" name="email" />
+    </div>
+
+    <div class="mb-3">
+      <label class="form-label">Validity (days)</label>
+      <input type="number" class="form-control" [(ngModel)]="request.validityInDays" name="validityInDays" min="1" />
+    </div>
+
+    <button class="btn btn-primary" type="submit">Issue Certificate</button>
+  </form>
+
+  <div *ngIf="issued" class="alert alert-success mt-3">
+    Intermediate Certificate issued for: <b>{{ issued.subjectDn }}</b>
+  </div>
+</div>

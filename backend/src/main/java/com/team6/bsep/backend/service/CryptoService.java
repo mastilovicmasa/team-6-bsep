@@ -1,6 +1,17 @@
 package com.team6.bsep.backend.service;
 
+import com.team6.bsep.backend.dto.CertificateRequest;
 import org.bouncycastle.asn1.x500.X500Name;
+import org.bouncycastle.asn1.x500.X500NameBuilder;
+import org.bouncycastle.asn1.x500.style.BCStyle;
+import org.bouncycastle.asn1.x509.BasicConstraints;
+import org.bouncycastle.asn1.x509.Extension;
+import org.bouncycastle.asn1.x509.KeyUsage;
+import org.bouncycastle.cert.X509CertificateHolder;
+import org.bouncycastle.cert.jcajce.JcaX509CertificateConverter;
+import org.bouncycastle.cert.jcajce.JcaX509v3CertificateBuilder;
+import org.bouncycastle.operator.ContentSigner;
+import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -11,15 +22,19 @@ import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.PBEKeySpec;
 import javax.crypto.spec.SecretKeySpec;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
+import java.math.BigInteger;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
-import java.security.KeyPair;
-import java.security.KeyPairGenerator;
-import java.security.KeyStore;
-import java.security.SecureRandom;
+import java.security.*;
+import java.security.cert.Certificate;
 import java.security.cert.X509Certificate;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.Base64;
+import java.util.Date;
+
 import com.team6.bsep.backend.utils.SelfSignedCertGenerator;
 
 
@@ -75,5 +90,71 @@ public class CryptoService {
         System.out.println("Keystore created at: " + file.getAbsolutePath());
 
     }
+
+
+    public KeyPair generateKeyPair() throws Exception {
+        KeyPairGenerator keyGen = KeyPairGenerator.getInstance("RSA");
+        keyGen.initialize(2048);
+        return keyGen.generateKeyPair();
+    }
+
+    public X500Name createX500Name(CertificateRequest dto) {
+        return new X500NameBuilder(BCStyle.INSTANCE)
+                .addRDN(BCStyle.CN, dto.getCommonName())
+                .addRDN(BCStyle.O, dto.getOrganization())
+                .addRDN(BCStyle.OU, dto.getOrganizationalUnit())
+                .addRDN(BCStyle.C, dto.getCountry())
+                .addRDN(BCStyle.EmailAddress, dto.getEmail())
+                .build();
+    }
+
+    public X509Certificate generateCertificate(X500Name subject, X500Name issuer,
+                                               PublicKey subjectPublicKey, PrivateKey issuerPrivateKey,
+                                               int validityDays, boolean isCA) throws Exception {
+        Date notBefore = new Date();
+        Date notAfter = Date.from(Instant.now().plus(validityDays, ChronoUnit.DAYS));
+        BigInteger serial = new BigInteger(64, new SecureRandom());
+
+        var builder = new JcaX509v3CertificateBuilder(
+                issuer, serial, notBefore, notAfter, subject, subjectPublicKey
+        );
+        builder.addExtension(Extension.basicConstraints, true, new BasicConstraints(isCA));
+        builder.addExtension(Extension.keyUsage, true, new KeyUsage(KeyUsage.keyCertSign | KeyUsage.cRLSign));
+
+        ContentSigner signer = new JcaContentSignerBuilder("SHA256WithRSA").build(issuerPrivateKey);
+        X509CertificateHolder holder = builder.build(signer);
+        return new JcaX509CertificateConverter().getCertificate(holder);
+    }
+
+    public KeyStore loadKeyStore(String path, String password) throws Exception {
+        try (FileInputStream fis = new FileInputStream(path)) {
+            KeyStore ks = KeyStore.getInstance("PKCS12");
+            ks.load(fis, password.toCharArray());
+            return ks;
+        }
+    }
+
+    public PrivateKey getPrivateKey(KeyStore ks, String alias, String password) throws Exception {
+        return (PrivateKey) ks.getKey(alias, password.toCharArray());
+    }
+
+    public X509Certificate getCertificate(KeyStore ks, String alias) throws Exception {
+        return (X509Certificate) ks.getCertificate(alias);
+    }
+
+    public void saveToKeystore(String path, String alias, PrivateKey key,
+                               X509Certificate cert, X509Certificate issuerCert, String password) throws Exception {
+        KeyStore ks = KeyStore.getInstance("PKCS12");
+        ks.load(null, null);
+        Certificate[] chain = new Certificate[]{cert, issuerCert};
+        ks.setKeyEntry(alias, key, password.toCharArray(), chain);
+
+        File file = new File(path);
+        file.getParentFile().mkdirs();
+        try (FileOutputStream fos = new FileOutputStream(file)) {
+            ks.store(fos, password.toCharArray());
+        }
+    }
+
 
 }

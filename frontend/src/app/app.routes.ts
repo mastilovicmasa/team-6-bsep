@@ -66,6 +66,11 @@ export const routes: Routes = [
         loadComponent: () =>
           import('./csr/ca-csr/ca-csr').then(m => m.CaRequestsComponent)
       },
+      {
+        path: 'ca-intermediate',
+        loadComponent: () =>
+          import('./issue-intermediate/issue-intermediate').then(m => m.IssueIntermediate)
+      },
       { path: '', redirectTo: 'dashboard', pathMatch: 'full' }
     ]
   },
