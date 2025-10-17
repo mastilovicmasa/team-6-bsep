@@ -87,7 +87,9 @@ public class CryptoService {
     }
 
     public KeyStore createCaKeystore(X509Certificate issuerCert, PrivateKey issuerKey,
-                                     String subjectDn, String alias, String password) throws Exception {
+                                     String subjectDn, String alias, String password,
+                                     int pathLenConstraint) throws Exception {
+
         System.out.println("=== [CryptoService] Starting createCaKeystore ===");
         Security.addProvider(new org.bouncycastle.jce.provider.BouncyCastleProvider());
 
@@ -96,6 +98,7 @@ public class CryptoService {
 
         System.out.println("Issuer certificate: " + issuerCert.getSubjectX500Principal());
         System.out.println("Subject DN for new cert: " + subjectDn);
+        System.out.println("PathLenConstraint for new CA: " + pathLenConstraint);
 
         // 1️⃣ Generate key pair
         KeyPairGenerator kpg = KeyPairGenerator.getInstance("RSA");
@@ -118,10 +121,32 @@ public class CryptoService {
                 issuer, serial, notBefore, notAfter, subject, kp.getPublic());
 
         var extUtils = new JcaX509ExtensionUtils();
-        builder.addExtension(Extension.basicConstraints, true, new BasicConstraints(true)); // ✅ mora biti true (CA)
-        builder.addExtension(Extension.keyUsage, true, new KeyUsage(KeyUsage.keyCertSign | KeyUsage.cRLSign));
-        builder.addExtension(Extension.subjectKeyIdentifier, false, extUtils.createSubjectKeyIdentifier(kp.getPublic()));
-        builder.addExtension(Extension.authorityKeyIdentifier, false, extUtils.createAuthorityKeyIdentifier(issuerCert.getPublicKey()));
+
+        // ✅ BasicConstraints: CA=true i setuj pathLenConstraint
+        builder.addExtension(
+                Extension.basicConstraints,
+                true,
+                new BasicConstraints(pathLenConstraint)
+        );
+
+        // ✅ KeyUsage: omogućava potpisivanje drugih sertifikata i CRL-ova
+        builder.addExtension(
+                Extension.keyUsage,
+                true,
+                new KeyUsage(KeyUsage.keyCertSign | KeyUsage.cRLSign)
+        );
+
+        // ✅ Identifikatori
+        builder.addExtension(
+                Extension.subjectKeyIdentifier,
+                false,
+                extUtils.createSubjectKeyIdentifier(kp.getPublic())
+        );
+        builder.addExtension(
+                Extension.authorityKeyIdentifier,
+                false,
+                extUtils.createAuthorityKeyIdentifier(issuerCert.getPublicKey())
+        );
 
         // 4️⃣ Sign with issuer private key
         System.out.println("Preparing to sign certificate...");
@@ -132,7 +157,6 @@ public class CryptoService {
                     .build(issuerKey);
         } catch (Exception e) {
             System.out.println("❌ Failed to create ContentSigner: " + e.getMessage());
-            e.printStackTrace();
             throw e;
         }
 
@@ -145,7 +169,6 @@ public class CryptoService {
             System.out.println("Certificate built successfully!");
         } catch (Exception e) {
             System.out.println("❌ Failed to build certificate: " + e.getMessage());
-            e.printStackTrace();
             throw e;
         }
 
@@ -155,15 +178,18 @@ public class CryptoService {
             System.out.println("✅ Certificate verified successfully against issuer public key.");
         } catch (Exception e) {
             System.out.println("❌ Verification failed: " + e.getMessage());
-            e.printStackTrace();
             throw e;
         }
 
         // 6️⃣ Create keystore and insert chain
         KeyStore ks = KeyStore.getInstance("PKCS12", "BC");
         ks.load(null, null);
-        ks.setKeyEntry(alias, kp.getPrivate(), password.toCharArray(),
-                new java.security.cert.Certificate[]{newCert, issuerCert});
+        ks.setKeyEntry(
+                alias,
+                kp.getPrivate(),
+                password.toCharArray(),
+                new java.security.cert.Certificate[]{newCert, issuerCert}
+        );
         System.out.println("Keystore entry created successfully for alias: " + alias);
 
         System.out.println("=== [CryptoService] Finished createCaKeystore ===");

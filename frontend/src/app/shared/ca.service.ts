@@ -31,11 +31,18 @@ export class CaService {
     return this.http.get<CaUser[]>(`${this.api}/api/admin/ca/users`, { headers });
   }
 
-  issueCaCertificate(email: string, subjectDn: string): Observable<any> {
+  issueCaCertificate(email: string, subjectDn: string, pathLenConstraint: number): Observable<any> {
     const token = localStorage.getItem('jwt');
     const headers = new HttpHeaders({
       Authorization: `Bearer ${token}`
     });
-    return this.http.post(`${this.api}/api/admin/ca/${email}/issue-ca`, { subjectDn }, { headers });
+
+    const body = {
+      subjectDn,
+      pathLenConstraint
+    };
+
+    return this.http.post(`${this.api}/api/admin/ca/${email}/issue-ca`, body, { headers });
   }
+
 }

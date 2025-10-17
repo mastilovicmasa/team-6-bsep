@@ -48,7 +48,7 @@ public class CaService {
     }
 
     @Transactional
-    public CertificateAuthority issueCaCertificateForUser(String email, String subjectDn) throws Exception {
+    public CertificateAuthority issueCaCertificateForUser(String email, String subjectDn, int pathLenConstraint) throws Exception {
 
         System.out.println("=== [START] Issue CA certificate for user " + email + " ===");
 
@@ -84,10 +84,11 @@ public class CaService {
         String ksPassword = generateRandomSecret();
         String alias = email + "-ca";
         System.out.println("Generated new keystore alias: " + alias);
+        System.out.println("Requested pathLenConstraint = " + pathLenConstraint);
 
         // 5️⃣ Kreiraj CA keystore potpisan od root-a
         System.out.println("Creating new CA keystore...");
-        KeyStore ks = cryptoService.createCaKeystore(rootCert, rootPrivateKey, subjectDn, alias, ksPassword);
+        KeyStore ks = cryptoService.createCaKeystore(rootCert, rootPrivateKey, subjectDn, alias, ksPassword, pathLenConstraint);
         System.out.println("New CA keystore created successfully.");
 
         // 6️⃣ Snimi keystore fajl
@@ -122,12 +123,12 @@ public class CaService {
                 .serialHex(newCert.getSerialNumber().toString(16))
                 .notBefore(newCert.getNotBefore().toInstant())
                 .notAfter(newCert.getNotAfter().toInstant())
-                .pathLenConstraint(0)
+                .pathLenConstraint(pathLenConstraint)
                 .keystorePath(ksPath.toString())
                 .keystoreAlias(alias)
                 .keystorePasswordEnc(cryptoService.encrypt(ksPassword))
                 .keyPasswordEnc(cryptoService.encrypt(ksPassword))
-                // .issuer(rootCa) // ako još nemaš ovo polje, komentariši
+                .issuer(rootCa)
                 .build();
 
         caRepo.save(caEntity);

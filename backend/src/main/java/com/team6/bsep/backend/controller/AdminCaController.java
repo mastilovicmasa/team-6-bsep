@@ -3,6 +3,7 @@ package com.team6.bsep.backend.controller;
 
 
 import com.team6.bsep.backend.dto.CaUserResponse;
+import com.team6.bsep.backend.dto.IssueCaRequest;
 import com.team6.bsep.backend.model.User;
 import com.team6.bsep.backend.model.UserRole;
 import com.team6.bsep.backend.repository.UserRepository;
@@ -48,14 +49,19 @@ public class AdminCaController {
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> issueCaCertificate(
             @PathVariable String email,
-            @RequestBody Map<String, String> body) {
+            @RequestBody IssueCaRequest body) {
         try {
-            String subjectDn = body.get("subjectDn");
-            caService.issueCaCertificateForUser(email, subjectDn);
-            return ResponseEntity.ok(Map.of("message", "CA certificate issued successfully"));
+            String subjectDn = body.getSubjectDn();
+            int pathLen = body.getPathLenConstraint();
+
+            caService.issueCaCertificateForUser(email, subjectDn, pathLen);
+
+            return ResponseEntity.ok(
+                    java.util.Map.of("message", "CA certificate issued successfully")
+            );
         } catch (Exception e) {
             return ResponseEntity.status(500)
-                    .body(Map.of("error", e.getMessage()));
+                    .body(java.util.Map.of("error", e.getMessage()));
         }
     }
 }

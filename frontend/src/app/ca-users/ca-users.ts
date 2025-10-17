@@ -36,32 +36,49 @@ export class CaUsers implements OnInit{
     });
   }
 
-  issueCertificate(user: CaUser) {
+ issueCertificate(user: CaUser) {
     Swal.fire({
       title: 'Issue CA Certificate?',
-      text: `Do you want to issue a CA certificate for ${user.firstName} (${user.organization})?`,
-      input: 'text',
-      inputLabel: 'Subject DN',
-      inputValue: `CN=${user.organization} CA, O=${user.organization}, C=RS`,
+      html: `
+        <label class="block text-left mb-2 font-medium">Subject DN:</label>
+        <input id="subjectDn" class="swal2-input" value="CN=${user.organization} CA, O=${user.organization}, C=RS" />
+
+        <div class="text-left mt-3">
+          <label class="block mb-2 font-medium">Allow further CA issuance?</label>
+          <div>
+            <input type="radio" id="allowYes" name="pathLen" value="1" checked>
+            <label for="allowYes">Yes (CA can issue other CAs)</label>
+          </div>
+          <div>
+            <input type="radio" id="allowNo" name="pathLen" value="0">
+            <label for="allowNo">No (CA cannot issue other CAs)</label>
+          </div>
+        </div>
+      `,
+      focusConfirm: false,
       showCancelButton: true,
       confirmButtonText: 'Issue',
-      preConfirm: (subjectDn) => {
+      preConfirm: () => {
+        const subjectDn = (document.getElementById('subjectDn') as HTMLInputElement).value.trim();
+        const pathLen = parseInt((document.querySelector('input[name="pathLen"]:checked') as HTMLInputElement).value);
+
         if (!subjectDn) {
           Swal.showValidationMessage('Subject DN is required');
           return false;
         }
-        return subjectDn;
+        return { subjectDn, pathLen };
       }
     }).then((result) => {
       if (result.isConfirmed && result.value) {
-        this.caUsersService.issueCaCertificate(user.email, result.value).subscribe({
+        const { subjectDn, pathLen } = result.value;
+        this.caUsersService.issueCaCertificate(user.email, subjectDn, pathLen).subscribe({
           next: () => {
             Swal.fire('Success', 'CA certificate issued successfully!', 'success');
-            this.loadCaUsers(); // refresh
+            this.loadCaUsers();
           },
           error: (err) => {
             console.error(err);
-            Swal.fire('Error', 'Failed to issue CA certificate.', 'error');
+            Swal.fire('Error', err.error?.error || 'Failed to issue CA certificate.', 'error');
           }
         });
       }
