@@ -57,6 +57,16 @@ export const routes: Routes = [
           import('./ca-users/ca-users').then(m => m.CaUsers)
       },
       {
+        path: 'ca-subordinates',
+        loadComponent: () =>
+          import('./ca-subordinates/ca-subordinates').then(m => m.CaSubordinatesComponent)
+      },
+      {
+        path: 'add-subordinates',
+        loadComponent: () =>
+          import('./add-subordinates/add-subordinates').then(m => m.AddSubordinateComponent)
+      },
+      {
         path: 'create-ca-user',
         loadComponent: () =>
           import('./create-ca-user/create-ca-user').then(m => m.CreateCaUserComponent)

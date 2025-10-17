@@ -54,6 +54,18 @@
       routerLinkActive="active">
       My CSR Requests
     </a>
+    <a 
+      *ngIf="role === 'CA'" 
+      routerLink="ca-subordinates" 
+      routerLinkActive="active">
+      View CA subordinates
+    </a>
+    <a 
+      *ngIf="role === 'CA'" 
+      routerLink="add-subordinates" 
+      routerLinkActive="active">
+      Add CA subordinates
+    </a>
   </div>
 
   <div class="right">

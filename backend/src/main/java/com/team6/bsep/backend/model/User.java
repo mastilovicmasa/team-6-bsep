@@ -48,6 +48,11 @@ public class User {
     @JoinColumn(name = "ca_id")
     private CertificateAuthority certificateAuthority;
 
+    // CA koji je izdao ovog korisnika (nadređeni CA)
+    @ManyToOne
+    @JoinColumn(name = "issuer_ca_id")
+    private CertificateAuthority issuerCa;
+
     @PrePersist @PreUpdate
     private void normalize() {
         if (email != null) email = email.trim().toLowerCase();

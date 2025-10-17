@@ -45,4 +45,30 @@ export class CaService {
     return this.http.post(`${this.api}/api/admin/ca/${email}/issue-ca`, body, { headers });
   }
 
+  getSubordinateCaUsers(): Observable<CaUser[]> {
+    const token = localStorage.getItem('jwt');
+    const headers = new HttpHeaders({
+      Authorization: `Bearer ${token}`
+    });
+    return this.http.get<CaUser[]>(`${this.api}/api/ca/subordinates`, { headers });
+  }
+
+  // Izdaje Sub-CA sertifikat podređenom korisniku
+  issueSubCaCertificate(email: string, subjectDn: string): Observable<any> {
+    const token = localStorage.getItem('jwt');
+    const headers = new HttpHeaders({
+      Authorization: `Bearer ${token}`
+    });
+    return this.http.post(`${this.api}/api/ca/issue-subca/${email}`, { subjectDn }, { headers });
+  }
+
+  createSubordinateUser(userData: any): Observable<any> {
+    const token = localStorage.getItem('jwt');
+    const headers = new HttpHeaders({
+      Authorization: `Bearer ${token}`
+    });
+    return this.http.post(`${this.api}/api/ca/create-subordinate`, userData, { headers });
+  }
+
+
 }

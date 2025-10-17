@@ -1,15 +1,20 @@
 package com.team6.bsep.backend.service;
 
 import com.team6.bsep.backend.dto.CaUserResponse;
+import com.team6.bsep.backend.dto.CreateCaUserRequest;
 import com.team6.bsep.backend.model.User;
 import com.team6.bsep.backend.model.UserRole;
+import com.team6.bsep.backend.model.UserStatus;
 import com.team6.bsep.backend.repository.CertificateAuthorityRepository;
 import com.team6.bsep.backend.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import com.team6.bsep.backend.model.CertificateAuthority;
 
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.io.OutputStream;
 import java.nio.file.Files;
@@ -17,11 +22,13 @@ import java.nio.file.Path;
 import java.security.KeyStore;
 import java.security.PrivateKey;
 import java.security.cert.X509Certificate;
+import java.time.Instant;
 import java.util.Base64;
 import java.security.SecureRandom;
 
 
 import java.util.List;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -30,6 +37,8 @@ public class CaService {
     private final CertificateAuthorityRepository caRepo;
     private final UserRepository userRepo;
     private final CryptoService cryptoService;
+    private final PasswordEncoder encoder;
+    private final EmailService emailService;
 
     @Transactional(readOnly = true)
     public List<CaUserResponse> getAllCaUsers() {
@@ -149,6 +158,148 @@ public class CaService {
         new SecureRandom().nextBytes(bytes);
         return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
     }
+
+
+    @Transactional
+    public CertificateAuthority issueSubCaCertificateForUser(String issuerEmail, String targetEmail, String subjectDn) throws Exception {
+
+        System.out.println("=== [START] SubCA issue from " + issuerEmail + " to " + targetEmail + " ===");
+
+        // 1️⃣ Dobavi issuer user-a (ulogovani CA)
+        User issuerUser = userRepo.findByEmail(issuerEmail)
+                .orElseThrow(() -> new IllegalArgumentException("Issuer CA user not found: " + issuerEmail));
+
+        CertificateAuthority issuerCa = issuerUser.getCertificateAuthority();
+        if (issuerCa == null)
+            throw new IllegalStateException("User is not associated with any CA certificate.");
+
+        if (issuerCa.getPathLenConstraint() <= 0)
+            throw new IllegalStateException("This CA cannot issue further CA certificates (pathLenConstraint=0).");
+
+        // 2️⃣ Dobavi target user-a kome se izdaje
+        User targetUser = userRepo.findByEmail(targetEmail)
+                .orElseThrow(() -> new IllegalArgumentException("Target user not found: " + targetEmail));
+
+        // 3️⃣ Dešifruj lozinku issuer keystore-a
+        String issuerKsPass = cryptoService.decrypt(issuerCa.getKeystorePasswordEnc());
+
+        // 4️⃣ Učitaj issuer keystore
+        KeyStore issuerKs = KeyStore.getInstance("PKCS12");
+        try (var in = Files.newInputStream(Path.of(issuerCa.getKeystorePath()))) {
+            issuerKs.load(in, issuerKsPass.toCharArray());
+        }
+
+        PrivateKey issuerKey = (PrivateKey) issuerKs.getKey(issuerCa.getKeystoreAlias(), issuerKsPass.toCharArray());
+        X509Certificate issuerCert = (X509Certificate) issuerKs.getCertificate(issuerCa.getKeystoreAlias());
+
+        // 5️⃣ Generiši novi keystore za target user-a
+        String ksPassword = generateRandomSecret();
+        String alias = targetEmail + "-ca";
+
+        int newPathLen = issuerCa.getPathLenConstraint() - 1;
+        KeyStore newKs = cryptoService.createCaKeystore(issuerCert, issuerKey, subjectDn, alias, ksPassword, newPathLen);
+
+        Path ksPath = Path.of("data/ca-users/" + alias + ".p12");
+        Files.createDirectories(ksPath.getParent());
+        try (OutputStream os = Files.newOutputStream(ksPath)) {
+            newKs.store(os, ksPassword.toCharArray());
+        }
+
+        X509Certificate newCert = (X509Certificate) newKs.getCertificate(alias);
+        newCert.verify(issuerCert.getPublicKey());
+
+        // 6️⃣ Sačuvaj novi CA u bazu
+        var caEntity = CertificateAuthority.builder()
+                .root(false)
+                .subjectDn(subjectDn)
+                .serialHex(newCert.getSerialNumber().toString(16))
+                .notBefore(newCert.getNotBefore().toInstant())
+                .notAfter(newCert.getNotAfter().toInstant())
+                .pathLenConstraint(newPathLen)
+                .keystorePath(ksPath.toString())
+                .keystoreAlias(alias)
+                .keystorePasswordEnc(cryptoService.encrypt(ksPassword))
+                .keyPasswordEnc(cryptoService.encrypt(ksPassword))
+                .issuer(issuerCa)
+                .build();
+
+        caRepo.save(caEntity);
+        targetUser.setCertificateAuthority(caEntity);
+        userRepo.save(targetUser);
+
+        System.out.println("✅ Subordinate CA issued successfully: " + targetEmail);
+        return caEntity;
+    }
+
+
+    @Transactional
+    public void createSubCaUser(String issuerEmail, CreateCaUserRequest req) {
+        String normalized = req.email().trim().toLowerCase();
+
+        if (userRepo.existsByEmail(normalized)) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Email already registered");
+        }
+
+        // 1️⃣ Pronađi issuer CA korisnika
+        User issuerUser = userRepo.findByEmail(issuerEmail)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Issuer CA user not found"));
+        CertificateAuthority issuerCa = issuerUser.getCertificateAuthority();
+
+        if (issuerCa == null)
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Issuer is not associated with a CA certificate");
+
+        if (issuerCa.getPathLenConstraint() <= 0)
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "This CA cannot create subordinate users (pathLenConstraint=0)");
+
+        // 2️⃣ Generiši login lozinku
+        String rawPassword = UUID.randomUUID().toString().substring(0, 12);
+
+        // 3️⃣ Kreiraj user entitet sa CA rolom
+        var newUser = User.builder()
+                .email(normalized)
+                .firstName(req.firstName())
+                .lastName(req.lastName())
+                .organization(req.organization())
+                .passwordHash(encoder.encode(rawPassword))
+                .role(UserRole.CA)
+                .status(UserStatus.ACTIVE)
+                .mustChangePassword(true)
+                .activatedAt(Instant.now())
+                .issuerCa(issuerCa)
+                .build();
+
+        userRepo.save(newUser);
+
+        // 4️⃣ Pošalji mejl novom korisniku
+        emailService.sendCaUserCreated(normalized, rawPassword, req.firstName());
+
+        // 5️⃣ Log info
+        System.out.printf(
+                "✅ Subordinate CA user created by %s (issuer CA=%s, pathLen=%d): %s%n",
+                issuerEmail,
+                issuerCa.getSubjectDn(),
+                issuerCa.getPathLenConstraint(),
+                normalized
+        );
+    }
+
+    @Transactional(readOnly = true)
+    public List<User> getSubordinateCaUsers(String issuerEmail) {
+        User issuerUser = userRepo.findByEmail(issuerEmail)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Issuer user not found"));
+        CertificateAuthority issuerCa = issuerUser.getCertificateAuthority();
+
+        if (issuerCa == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "User is not associated with a CA certificate");
+        }
+
+        List<User> subordinates = userRepo.findAllByIssuerCa(issuerCa);
+        System.out.printf("ℹ️ Found %d subordinate CA users for issuer %s (%s)%n",
+                subordinates.size(), issuerEmail, issuerCa.getSubjectDn());
+
+        return subordinates;
+    }
+
 
 
 }
