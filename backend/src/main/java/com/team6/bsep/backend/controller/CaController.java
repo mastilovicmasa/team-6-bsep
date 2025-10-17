@@ -6,9 +6,12 @@ import com.team6.bsep.backend.model.CertificateAuthority;
 import com.team6.bsep.backend.repository.CertificateAuthorityRepository;
 import com.team6.bsep.backend.service.IntermediateCertificateService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.security.Principal;
 import java.util.List;
 
 @RestController
@@ -32,9 +35,19 @@ public class CaController {
     }
 
     @PostMapping("/issue-intermediate")
-    public ResponseEntity<CertificateAuthority> issueIntermediate(@RequestBody CertificateRequest dto) {
-        CertificateAuthority newCA = certificateService.issueIntermediateCertificate(dto);
-        return ResponseEntity.ok(newCA);
+    @PreAuthorize("hasAnyRole('ADMIN', 'CA')") // ✅ samo admin i CA korisnici mogu izdavati intermediate
+    public ResponseEntity<CertificateAuthority> issueIntermediate(
+            @RequestBody CertificateRequest dto,
+            Principal principal   // ✅ automatski daje email trenutno ulogovanog korisnika
+    ) {
+        try {
+            String issuerEmail = principal.getName(); // email iz tokena / sesije
+            CertificateAuthority newCA = certificateService.issueIntermediateCertificate(dto, issuerEmail);
+            return ResponseEntity.ok(newCA);
+        } catch (RuntimeException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(null);
+        }
     }
 
 }

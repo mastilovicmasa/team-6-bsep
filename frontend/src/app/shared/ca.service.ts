@@ -1,5 +1,6 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
+import { CertificateRequest } from '../model/certificate-request.model';
 
 @Injectable({ providedIn: 'root' })
 export class CaService {
@@ -28,13 +29,19 @@ export class CaService {
     return this.http.get<any[]>(`${this.api}/api/ca/list`, { headers });
   }
 
-  issueIntermediate(request: any) {
+  issueIntermediate(request: CertificateRequest) {
     const token = localStorage.getItem('jwt');
     const headers = new HttpHeaders({
       Authorization: `Bearer ${token}`,
       'Content-Type': 'application/json'
     });
-    return this.http.post<any>(`${this.api}/api/ca/issue-intermediate`, request, { headers });
+
+    return this.http.post<any>(
+      `${this.api}/api/ca/issue-intermediate`,
+      request,
+      { headers }
+    );
   }
+
 
 }

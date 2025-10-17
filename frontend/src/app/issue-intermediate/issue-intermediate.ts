@@ -2,16 +2,9 @@ import { Component, OnInit } from '@angular/core';
 import { CaService } from '../shared/ca.service';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { CertificateRequest } from '../model/certificate-request.model';
 
-interface CertificateRequest {
-  issuerId: number;
-  commonName: string;
-  organization: string;
-  organizationalUnit: string;
-  country: string;
-  email: string;
-  validityInDays: number;
-}
+
 @Component({
   selector: 'app-issue-intermediate',
    imports: [CommonModule, FormsModule],

@@ -85,6 +85,7 @@ public class RootCaService {
                 .keystoreAlias(ksAlias)
                 .keystorePasswordEnc(crypto.encrypt(ksPassword))
                 .keyPasswordEnc(crypto.encrypt(ksPassword))
+                .issuer(null)
                 .build();
         caRepo.save(ca);
 

@@ -21,6 +21,7 @@ import javax.crypto.SecretKeyFactory;
 import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.PBEKeySpec;
 import javax.crypto.spec.SecretKeySpec;
+import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -29,6 +30,7 @@ import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.security.*;
 import java.security.cert.Certificate;
+import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -144,17 +146,41 @@ public class CryptoService {
 
     public void saveToKeystore(String path, String alias, PrivateKey key,
                                X509Certificate cert, X509Certificate issuerCert, String password) throws Exception {
+
         KeyStore ks = KeyStore.getInstance("PKCS12");
         ks.load(null, null);
-        Certificate[] chain = new Certificate[]{cert, issuerCert};
+
+        // ✅ Re-wrap (pretvori u standardne X509Certificate instance koje SunPKCS12 prihvata)
+        CertificateFactory cf = CertificateFactory.getInstance("X.509");
+        X509Certificate stdCert = (X509Certificate) cf.generateCertificate(new ByteArrayInputStream(cert.getEncoded()));
+        X509Certificate stdIssuer = (issuerCert != null)
+                ? (X509Certificate) cf.generateCertificate(new ByteArrayInputStream(issuerCert.getEncoded()))
+                : null;
+
+        // ✅ Provera da li issuer potpisuje cert
+        if (stdIssuer != null) {
+            stdCert.verify(stdIssuer.getPublicKey());
+            System.out.println("✅ Verified re-wrapped certificates successfully");
+        }
+
+        // ✅ Napravi lanac
+        Certificate[] chain = (stdIssuer != null)
+                ? new Certificate[]{stdCert, stdIssuer}
+                : new Certificate[]{stdCert};
+
         ks.setKeyEntry(alias, key, password.toCharArray(), chain);
 
         File file = new File(path);
         file.getParentFile().mkdirs();
+
         try (FileOutputStream fos = new FileOutputStream(file)) {
             ks.store(fos, password.toCharArray());
         }
+
+        System.out.println("✅ Keystore saved successfully: " + file.getAbsolutePath());
     }
+
+
 
 
 }

@@ -23,5 +23,9 @@ public class CertificateAuthority {
     String keystorePath; String keystoreAlias;
     @Lob String keystorePasswordEnc; @Lob String keyPasswordEnc;
     Instant revokedAt;
+
+    @ManyToOne
+    @JoinColumn(name = "issuer_id")
+    private CertificateAuthority issuer;
 }
 
