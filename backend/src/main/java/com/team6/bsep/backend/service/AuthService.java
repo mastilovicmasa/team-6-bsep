@@ -285,19 +285,19 @@ public class AuthService {
         // 1. generiši random lozinku za login
         String rawPassword = UUID.randomUUID().toString().substring(0, 12);
 
-        // 2. generiši random lozinku za keystore
-        String ksPassword = UUID.randomUUID().toString();
-        String ksPasswordEnc = cryptoService.encrypt(ksPassword);
-
-        // 3. napravi keystore fajl za ovog CA
-        String alias = normalized + "-ca";
-        String path = "data/keystores/" + alias + ".p12";
-        try {
-            cryptoService.createKeystore(path, alias, ksPassword);
-            // ^ ovo treba da napravi .p12 sa tim passwordom i aliasom
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to create CA keystore", e);
-        }
+//        // 2. generiši random lozinku za keystore
+//        String ksPassword = UUID.randomUUID().toString();
+//        String ksPasswordEnc = cryptoService.encrypt(ksPassword);
+//
+//        // 3. napravi keystore fajl za ovog CA
+//        String alias = normalized + "-ca";
+//        String path = "data/keystores/" + alias + ".p12";
+//        try {
+//            cryptoService.createKeystore(path, alias, ksPassword);
+//            // ^ ovo treba da napravi .p12 sa tim passwordom i aliasom
+//        } catch (Exception e) {
+//            throw new RuntimeException("Failed to create CA keystore", e);
+//        }
 
         // 4. kreiraj user-a sa CA rolom
         var user = User.builder()
@@ -313,20 +313,20 @@ public class AuthService {
                 .build();
 
         // 5. kreiraj CA entitet
-        var caEntity = CertificateAuthority.builder()
-                .subjectDn("CN=" + req.organization() + " CA, O=" + req.organization() + ", C=RS")
-                .root(false)
-                .notBefore(Instant.now())
-                .notAfter(Instant.now().plus(365, ChronoUnit.DAYS))
-                .keystorePath(path)
-                .keystoreAlias(alias)
-                .keystorePasswordEnc(ksPasswordEnc) // enkriptovana lozinka!
-                .build();
-
-        caRepo.save(caEntity);
+//        var caEntity = CertificateAuthority.builder()
+//                .subjectDn("CN=" + req.organization() + " CA, O=" + req.organization() + ", C=RS")
+//                .root(false)
+//                .notBefore(Instant.now())
+//                .notAfter(Instant.now().plus(365, ChronoUnit.DAYS))
+//                .keystorePath(path)
+//                .keystoreAlias(alias)
+//                .keystorePasswordEnc(ksPasswordEnc) // enkriptovana lozinka!
+//                .build();
+//
+//        caRepo.save(caEntity);
 
         // 6. poveži usera i CA
-        user.setCertificateAuthority(caEntity);
+        //user.setCertificateAuthority(caEntity);
         users.save(user);
 
         // 7. pošalji mejl useru

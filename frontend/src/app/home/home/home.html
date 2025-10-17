@@ -27,6 +27,12 @@
       routerLinkActive="active">
       Add CA Users
     </a>
+    <a 
+      *ngIf="role === 'ADMIN'" 
+      routerLink="ca-users" 
+      routerLinkActive="active">
+      View CA Users
+    </a>
 
     <a 
       *ngIf="role === 'USER'" 

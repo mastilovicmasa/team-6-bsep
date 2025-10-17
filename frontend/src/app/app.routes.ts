@@ -52,6 +52,11 @@ export const routes: Routes = [
           import('./csr/admin-csr/admin-csr').then(m => m.AdminRequestsComponent)
       },
       {
+        path: 'ca-users',
+        loadComponent: () =>
+          import('./ca-users/ca-users').then(m => m.CaUsers)
+      },
+      {
         path: 'create-ca-user',
         loadComponent: () =>
           import('./create-ca-user/create-ca-user').then(m => m.CreateCaUserComponent)

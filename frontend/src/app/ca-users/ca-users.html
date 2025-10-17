@@ -1,0 +1,40 @@
+<div class="p-4">
+  <h2 class="text-xl font-semibold mb-4">CA Users</h2>
+
+  <div *ngIf="loading" class="text-gray-500">Loading...</div>
+
+  <table *ngIf="!loading && caUsers.length > 0" class="table-auto w-full border-collapse">
+    <thead class="bg-gray-100 border-b">
+      <tr>
+        <th class="p-2 text-left">Email</th>
+        <th class="p-2 text-left">Name</th>
+        <th class="p-2 text-left">Organization</th>
+        <th class="p-2 text-left">Certificate</th>
+        <th class="p-2 text-center">Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr *ngFor="let user of caUsers" class="border-b">
+        <td class="p-2">{{ user.email }}</td>
+        <td class="p-2">{{ user.firstName }} {{ user.lastName }}</td>
+        <td class="p-2">{{ user.organization }}</td>
+        <td class="p-2">
+          <span *ngIf="user.hasCaCertificate" class="text-green-600 font-semibold">Issued</span>
+          <span *ngIf="!user.hasCaCertificate" class="text-gray-500">None</span>
+        </td>
+        <td class="p-2 text-center">
+          <button
+            class="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700"
+            (click)="issueCertificate(user)"
+            [disabled]="user.hasCaCertificate">
+            Issue CA Certificate
+          </button>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div *ngIf="!loading && caUsers.length === 0" class="text-gray-500 mt-4">
+    No CA users found.
+  </div>
+</div>

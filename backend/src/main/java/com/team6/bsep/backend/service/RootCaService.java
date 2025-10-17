@@ -24,6 +24,7 @@ import java.security.*;
 import java.security.cert.X509Certificate;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.Arrays;
 import java.util.Base64;
 import java.util.Date;
 
@@ -89,6 +90,25 @@ public class RootCaService {
         caRepo.save(ca);
 
         System.out.println("=== ROOT CA CREATED === " + subject + " @ " + p);
+
+        // === Ispis sertifikata za proveru ===
+        System.out.println("\n=== [ROOT CERTIFICATE INFO] ===");
+        System.out.println("Subject: " + cert.getSubjectX500Principal());
+        System.out.println("Issuer : " + cert.getIssuerX500Principal());
+        System.out.println("Valid  : " + cert.getNotBefore() + "  -  " + cert.getNotAfter());
+        System.out.println("Serial : " + cert.getSerialNumber().toString(16));
+        System.out.println("SigAlg : " + cert.getSigAlgName());
+        System.out.println("BasicConstraints: " + cert.getBasicConstraints());
+        System.out.println("KeyUsage: " + Arrays.toString(cert.getKeyUsage()));
+
+        try {
+            cert.verify(cert.getPublicKey());
+            System.out.println("✅ Sertifikat je samopotpisan i verifikovan uspešno!");
+        } catch (Exception e) {
+            System.out.println("❌ Verifikacija nije uspela: " + e.getMessage());
+        }
+
+        System.out.println("===============================");
     }
 
     private static String randomSecret() {
