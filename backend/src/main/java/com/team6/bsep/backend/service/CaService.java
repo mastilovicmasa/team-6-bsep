@@ -61,92 +61,19 @@ public class CaService {
 
         System.out.println("=== [START] Issue CA certificate for user " + email + " ===");
 
-        // 1️⃣ Pronađi Root CA
-        var rootCa = caRepo.findByRootTrue()
+        // 🧩 1. Pronađi Root CA
+        CertificateAuthority rootCa = caRepo.findByRootTrue()
                 .orElseThrow(() -> new IllegalStateException("Root CA not found in database"));
-        System.out.println("Root CA found in DB:");
-        System.out.println("  subjectDn: " + rootCa.getSubjectDn());
-        System.out.println("  path:      " + rootCa.getKeystorePath());
-        System.out.println("  alias:     " + rootCa.getKeystoreAlias());
 
-        // 2️⃣ Učitaj root keystore
-        String rootPassword = cryptoService.decrypt(rootCa.getKeystorePasswordEnc());
-        KeyStore rootKs = KeyStore.getInstance("PKCS12");
-        try (var in = Files.newInputStream(Path.of(rootCa.getKeystorePath()))) {
-            rootKs.load(in, rootPassword.toCharArray());
-        }
-        PrivateKey rootPrivateKey = (PrivateKey) rootKs.getKey(rootCa.getKeystoreAlias(), rootPassword.toCharArray());
-        X509Certificate rootCert = (X509Certificate) rootKs.getCertificate(rootCa.getKeystoreAlias());
-
-        System.out.println("Root cert details:");
-        System.out.println("  Subject: " + rootCert.getSubjectX500Principal());
-        System.out.println("  Issuer : " + rootCert.getIssuerX500Principal());
-        System.out.println("  Valid  : " + rootCert.getNotBefore() + " - " + rootCert.getNotAfter());
-        System.out.println("  isSelfSigned: " + rootCert.getSubjectX500Principal().equals(rootCert.getIssuerX500Principal()));
-
-        // 3️⃣ Nađi korisnika kome se izdaje CA sertifikat
+        // 👤 2. Nađi korisnika
         User user = userRepo.findByEmail(email)
                 .orElseThrow(() -> new IllegalArgumentException("CA user not found: " + email));
-        System.out.println("Target user found: " + user.getEmail() + " (" + user.getOrganization() + ")");
 
-        // 4️⃣ Generiši random lozinku za novi keystore
-        String ksPassword = generateRandomSecret();
+        // 🏷️ 3. Definiši alias
         String alias = email + "-ca";
-        System.out.println("Generated new keystore alias: " + alias);
-        System.out.println("Requested pathLenConstraint = " + pathLenConstraint);
 
-        // 5️⃣ Kreiraj CA keystore potpisan od root-a
-        System.out.println("Creating new CA keystore...");
-        KeyStore ks = cryptoService.createCaKeystore(rootCert, rootPrivateKey, subjectDn, alias, ksPassword, pathLenConstraint);
-        System.out.println("New CA keystore created successfully.");
-
-        // 6️⃣ Snimi keystore fajl
-        Path ksPath = Path.of("data/ca-users/" + alias + ".p12");
-        Files.createDirectories(ksPath.getParent());
-        try (OutputStream os = Files.newOutputStream(ksPath)) {
-            ks.store(os, ksPassword.toCharArray());
-        }
-        System.out.println("Keystore file saved: " + ksPath.toAbsolutePath());
-
-        // 7️⃣ Izvuci sertifikat iz keystorea
-        X509Certificate newCert = (X509Certificate) ks.getCertificate(alias);
-
-        System.out.println("New cert details:");
-        System.out.println("  Subject: " + newCert.getSubjectX500Principal());
-        System.out.println("  Issuer : " + newCert.getIssuerX500Principal());
-        System.out.println("  Valid  : " + newCert.getNotBefore() + " - " + newCert.getNotAfter());
-        System.out.println("  Serial : " + newCert.getSerialNumber().toString(16));
-
-        try {
-            newCert.verify(rootCert.getPublicKey());
-            System.out.println("✅ Certificate successfully verified against Root public key.");
-        } catch (Exception e) {
-            System.out.println("❌ Certificate verification FAILED: " + e.getMessage());
-            e.printStackTrace();
-        }
-
-        // 8️⃣ Kreiraj CA entitet i sačuvaj u bazi
-        var caEntity = CertificateAuthority.builder()
-                .root(false)
-                .subjectDn(subjectDn)
-                .serialHex(newCert.getSerialNumber().toString(16))
-                .notBefore(newCert.getNotBefore().toInstant())
-                .notAfter(newCert.getNotAfter().toInstant())
-                .pathLenConstraint(pathLenConstraint)
-                .keystorePath(ksPath.toString())
-                .keystoreAlias(alias)
-                .keystorePasswordEnc(cryptoService.encrypt(ksPassword))
-                .keyPasswordEnc(cryptoService.encrypt(ksPassword))
-                .issuer(rootCa)
-                .build();
-
-        caRepo.save(caEntity);
-        System.out.println("Saved CertificateAuthority entity to DB (id=" + caEntity.getId() + ")");
-
-        // 9️⃣ Poveži CA sa korisnikom
-        user.setCertificateAuthority(caEntity);
-        userRepo.save(user);
-        System.out.println("Linked new CA to user: " + user.getEmail());
+        // 🪄 4. Pozovi zajedničku funkciju
+        CertificateAuthority caEntity = issueCaInternal(rootCa, subjectDn, alias, pathLenConstraint, user);
 
         System.out.println("=== [END] Successfully issued CA certificate for user " + email + " ===");
         return caEntity;
@@ -165,10 +92,9 @@ public class CaService {
 
         System.out.println("=== [START] SubCA issue from " + issuerEmail + " to " + targetEmail + " ===");
 
-        // 1️⃣ Dobavi issuer user-a (ulogovani CA)
+        // 👤 1. Issuer (CA koji potpisuje)
         User issuerUser = userRepo.findByEmail(issuerEmail)
                 .orElseThrow(() -> new IllegalArgumentException("Issuer CA user not found: " + issuerEmail));
-
         CertificateAuthority issuerCa = issuerUser.getCertificateAuthority();
         if (issuerCa == null)
             throw new IllegalStateException("User is not associated with any CA certificate.");
@@ -176,46 +102,65 @@ public class CaService {
         if (issuerCa.getPathLenConstraint() <= 0)
             throw new IllegalStateException("This CA cannot issue further CA certificates (pathLenConstraint=0).");
 
-        // 2️⃣ Dobavi target user-a kome se izdaje
+        // 🎯 2. Target korisnik
         User targetUser = userRepo.findByEmail(targetEmail)
                 .orElseThrow(() -> new IllegalArgumentException("Target user not found: " + targetEmail));
 
-        // 3️⃣ Dešifruj lozinku issuer keystore-a
-        String issuerKsPass = cryptoService.decrypt(issuerCa.getKeystorePasswordEnc());
+        // 🪄 3. Poziv zajedničke funkcije
+        int newPathLen = issuerCa.getPathLenConstraint() - 1;
+        String alias = targetEmail + "-ca";
+        CertificateAuthority caEntity = issueCaInternal(issuerCa, subjectDn, alias, newPathLen, targetUser);
 
-        // 4️⃣ Učitaj issuer keystore
+        System.out.println("=== [END] Subordinate CA issued successfully to " + targetEmail + " ===");
+        return caEntity;
+    }
+
+    private CertificateAuthority issueCaInternal(
+            CertificateAuthority issuerCa,
+            String subjectDn,
+            String alias,
+            int pathLenConstraint,
+            User targetUser
+    ) throws Exception {
+
+        // 🔓 1. Dešifruj lozinku keystore-a izdavaoca (root ili intermediate)
+        String issuerPass = cryptoService.decrypt(issuerCa.getKeystorePasswordEnc());
+
+        // 📂 2. Učitaj issuer keystore
         KeyStore issuerKs = KeyStore.getInstance("PKCS12");
         try (var in = Files.newInputStream(Path.of(issuerCa.getKeystorePath()))) {
-            issuerKs.load(in, issuerKsPass.toCharArray());
+            issuerKs.load(in, issuerPass.toCharArray());
         }
 
-        PrivateKey issuerKey = (PrivateKey) issuerKs.getKey(issuerCa.getKeystoreAlias(), issuerKsPass.toCharArray());
+        // 🔑 3. Izvuci issuer privatni ključ i sertifikat
+        PrivateKey issuerKey = (PrivateKey) issuerKs.getKey(issuerCa.getKeystoreAlias(), issuerPass.toCharArray());
         X509Certificate issuerCert = (X509Certificate) issuerKs.getCertificate(issuerCa.getKeystoreAlias());
 
-        // 5️⃣ Generiši novi keystore za target user-a
+        // 🔐 4. Generiši novu lozinku za novi keystore
         String ksPassword = generateRandomSecret();
-        String alias = targetEmail + "-ca";
 
-        int newPathLen = issuerCa.getPathLenConstraint() - 1;
-        KeyStore newKs = cryptoService.createCaKeystore(issuerCert, issuerKey, subjectDn, alias, ksPassword, newPathLen);
+        // 🏗️ 5. Kreiraj novi CA keystore potpisan od izdavaoca
+        KeyStore newKs = cryptoService.createCaKeystore(issuerCert, issuerKey, subjectDn, alias, ksPassword, pathLenConstraint);
 
+        // 💾 6. Snimi novi keystore fajl
         Path ksPath = Path.of("data/ca-users/" + alias + ".p12");
         Files.createDirectories(ksPath.getParent());
         try (OutputStream os = Files.newOutputStream(ksPath)) {
             newKs.store(os, ksPassword.toCharArray());
         }
 
+        // 🔍 7. Verifikuj novi sertifikat
         X509Certificate newCert = (X509Certificate) newKs.getCertificate(alias);
         newCert.verify(issuerCert.getPublicKey());
 
-        // 6️⃣ Sačuvaj novi CA u bazu
-        var caEntity = CertificateAuthority.builder()
+        // 🧱 8. Kreiraj novi CA entitet
+        CertificateAuthority caEntity = CertificateAuthority.builder()
                 .root(false)
                 .subjectDn(subjectDn)
                 .serialHex(newCert.getSerialNumber().toString(16))
                 .notBefore(newCert.getNotBefore().toInstant())
                 .notAfter(newCert.getNotAfter().toInstant())
-                .pathLenConstraint(newPathLen)
+                .pathLenConstraint(pathLenConstraint)
                 .keystorePath(ksPath.toString())
                 .keystoreAlias(alias)
                 .keystorePasswordEnc(cryptoService.encrypt(ksPassword))
@@ -223,13 +168,17 @@ public class CaService {
                 .issuer(issuerCa)
                 .build();
 
+        // 💿 9. Sačuvaj sve u bazi i poveži korisnika
         caRepo.save(caEntity);
         targetUser.setCertificateAuthority(caEntity);
         userRepo.save(targetUser);
 
-        System.out.println("✅ Subordinate CA issued successfully: " + targetEmail);
+        System.out.println("✅ Issued CA cert: " + targetUser.getEmail() +
+                " (issuer=" + issuerCa.getSubjectDn() + ", pathLen=" + pathLenConstraint + ")");
+
         return caEntity;
     }
+
 
 
     @Transactional

@@ -1,7 +1,6 @@
-import { Component } from '@angular/core';
-import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
+import { Component, EventEmitter, Output } from '@angular/core';
+import { ReactiveFormsModule, FormBuilder, FormGroup, Validators } from '@angular/forms';
 import { CommonModule } from '@angular/common';
-import Swal from 'sweetalert2';
 import { CaService } from '../shared/ca.service';
 
 @Component({
@@ -13,6 +12,11 @@ import { CaService } from '../shared/ca.service';
 })
 export class AddSubordinateComponent {
   form: FormGroup;
+  success = '';
+  error = '';
+
+  @Output() userCreated = new EventEmitter<void>(); 
+  @Output() close = new EventEmitter<void>();    
 
   constructor(private fb: FormBuilder, private caService: CaService) {
     this.form = this.fb.group({
@@ -23,21 +27,28 @@ export class AddSubordinateComponent {
     });
   }
 
-  submit() {
-    if (this.form.invalid) {
-      Swal.fire('Error', 'Please fill in all required fields correctly.', 'error');
-      return;
-    }
+  submit(): void {
+    if (this.form.invalid) return;
 
-    const formData = this.form.value;
-    this.caService.createSubordinateUser(formData).subscribe({
+    this.caService.createSubordinateUser(this.form.value).subscribe({
       next: () => {
-        Swal.fire('Success', 'Subordinate CA user created successfully!', 'success');
+        this.success = 'Subordinate CA user created successfully!';
+        this.error = '';
+        this.userCreated.emit();
         this.form.reset();
+
+        setTimeout(() => this.close.emit(), 500);
       },
       error: (err) => {
         console.error(err);
-        Swal.fire('Error', err.error?.error || 'Failed to create subordinate CA user.', 'error');
+        if (err.status === 409) {
+          this.error = 'Email already registered.';
+        } else if (err.error?.message) {
+          this.error = err.error.message;
+        } else {
+          this.error = 'Failed to create subordinate CA user.';
+        }
+        this.success = '';
       }
     });
   }

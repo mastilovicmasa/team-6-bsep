@@ -16,7 +16,7 @@
 }
 
 .navbar .left a.active {
-  background: #007bff;
+  background: var(--primary);
   color: white;
 }
 

@@ -3,10 +3,11 @@ import Swal from 'sweetalert2';
 import { CaUser } from '../shared/ca-user.model';
 import { CaService } from '../shared/ca.service';
 import { CommonModule } from '@angular/common';
+import { CreateCaUserComponent } from '../create-ca-user/create-ca-user';
 
 @Component({
   selector: 'app-ca-users',
-  imports: [CommonModule ],
+  imports: [CommonModule, CreateCaUserComponent ],
   templateUrl: './ca-users.html',
   styleUrl: './ca-users.css'
 })
@@ -35,6 +36,18 @@ export class CaUsers implements OnInit{
       }
     });
   }
+
+  showCreateCaUser = false;
+
+  toggleCreateCaUser() {
+    this.showCreateCaUser = !this.showCreateCaUser;
+  }
+
+  onCaUserCreated(newUser: any) {
+    this.caUsers.push(newUser);
+    this.showCreateCaUser = false;
+  }
+
 
  issueCertificate(user: CaUser) {
     Swal.fire({

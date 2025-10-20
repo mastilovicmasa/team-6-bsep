@@ -3,18 +3,19 @@ import Swal from 'sweetalert2';
 import { CaUser } from '../shared/ca-user.model';
 import { CaService } from '../shared/ca.service';
 import { CommonModule } from '@angular/common';
+import { AddSubordinateComponent } from '../add-subordinates/add-subordinates';
 
 @Component({
   selector: 'app-ca-subordinates',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, AddSubordinateComponent],
   templateUrl: './ca-subordinates.html',
-  styleUrl: './ca-subordinates.css'
+  styleUrls: ['./ca-subordinates.css']
 })
 export class CaSubordinatesComponent implements OnInit {
-
   subordinates: CaUser[] = [];
   loading = true;
+  showAddSubordinate = false;
 
   constructor(private caService: CaService) {}
 
@@ -22,11 +23,14 @@ export class CaSubordinatesComponent implements OnInit {
     this.loadSubordinates();
   }
 
+  toggleAddSubordinate() {
+    this.showAddSubordinate = !this.showAddSubordinate;
+  }
+
   loadSubordinates() {
     this.loading = true;
     this.caService.getSubordinateCaUsers().subscribe({
       next: (users) => {
-        console.log(users);
         this.subordinates = users;
         this.loading = false;
       },
@@ -69,4 +73,10 @@ export class CaSubordinatesComponent implements OnInit {
       }
     });
   }
+
+  onSubordinateCreated() {
+    this.showAddSubordinate = false;
+    this.loadSubordinates();  
+  }
+
 }

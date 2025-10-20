@@ -1,40 +1,69 @@
-<div class="p-4">
-  <h2 class="text-xl font-semibold mb-4">CA Users</h2>
+<div class="ca-users-container">
+  <!-- Header -->
+  <div class="header">
+    <h2>CA Users</h2>
 
-  <div *ngIf="loading" class="text-gray-500">Loading...</div>
+    <button class="btn-primary" (click)="toggleCreateCaUser()">
+      <i class="fa-solid fa-plus"></i>
+      <span>Add CA User</span>
+    </button>
+  </div>
 
-  <table *ngIf="!loading && caUsers.length > 0" class="table-auto w-full border-collapse">
-    <thead class="bg-gray-100 border-b">
-      <tr>
-        <th class="p-2 text-left">Email</th>
-        <th class="p-2 text-left">Name</th>
-        <th class="p-2 text-left">Organization</th>
-        <th class="p-2 text-left">Certificate</th>
-        <th class="p-2 text-center">Actions</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr *ngFor="let user of caUsers" class="border-b">
-        <td class="p-2">{{ user.email }}</td>
-        <td class="p-2">{{ user.firstName }} {{ user.lastName }}</td>
-        <td class="p-2">{{ user.organization }}</td>
-        <td class="p-2">
-          <span *ngIf="user.hasCaCertificate" class="text-green-600 font-semibold">Issued</span>
-          <span *ngIf="!user.hasCaCertificate" class="text-gray-500">None</span>
-        </td>
-        <td class="p-2 text-center">
-          <button
-            class="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700"
-            (click)="issueCertificate(user)"
-            [disabled]="user.hasCaCertificate">
-            Issue CA Certificate
-          </button>
-        </td>
-      </tr>
-    </tbody>
-  </table>
+  <!-- Loading -->
+  <div *ngIf="loading" class="loading">Loading CA users...</div>
 
-  <div *ngIf="!loading && caUsers.length === 0" class="text-gray-500 mt-4">
+  <!-- Table -->
+  <div *ngIf="!loading && caUsers.length > 0" class="table-wrapper">
+    <table class="ca-table">
+      <thead>
+        <tr>
+          <th>Email</th>
+          <th>Name</th>
+          <th>Organization</th>
+          <th>Certificate</th>
+          <th class="text-center">Actions</th>
+        </tr>
+      </thead>
+
+      <tbody>
+        <tr *ngFor="let user of caUsers">
+          <td>{{ user.email }}</td>
+          <td>{{ user.firstName }} {{ user.lastName }}</td>
+          <td>{{ user.organization }}</td>
+          <td>
+            <span *ngIf="user.hasCaCertificate" class="badge badge-success">
+              <i class="fa-solid fa-check"></i> Issued
+            </span>
+            <span *ngIf="!user.hasCaCertificate" class="badge badge-muted">
+              <i class="fa-regular fa-circle-xmark"></i> None
+            </span>
+          </td>
+          <td class="text-center">
+            <button
+              class="btn-action"
+              (click)="issueCertificate(user)"
+              [disabled]="user.hasCaCertificate"
+            >
+              Issue Certificate
+            </button>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Empty -->
+  <div *ngIf="!loading && caUsers.length === 0" class="empty-state">
     No CA users found.
+  </div>
+
+  <!-- Modal -->
+  <div *ngIf="showCreateCaUser" class="modal-backdrop" (click)="showCreateCaUser = false">
+    <div class="modal-content" (click)="$event.stopPropagation()">
+      <app-create-ca-user
+        (close)="showCreateCaUser = false"
+        (userCreated)="onCaUserCreated($event)"
+      ></app-create-ca-user>
+    </div>
   </div>
 </div>

@@ -21,17 +21,12 @@
       CSR
     </a>
 
-    <a 
-      *ngIf="role === 'ADMIN'" 
-      routerLink="create-ca-user" 
-      routerLinkActive="active">
-      Add CA Users
-    </a>
+  
     <a 
       *ngIf="role === 'ADMIN'" 
       routerLink="ca-users" 
       routerLinkActive="active">
-      View CA Users
+      CA Users
     </a>
 
     <a 
@@ -59,12 +54,6 @@
       routerLink="ca-subordinates" 
       routerLinkActive="active">
       View CA subordinates
-    </a>
-    <a 
-      *ngIf="role === 'CA'" 
-      routerLink="add-subordinates" 
-      routerLinkActive="active">
-      Add CA subordinates
     </a>
   </div>
 
