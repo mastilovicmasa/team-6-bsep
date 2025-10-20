@@ -3,6 +3,8 @@ package com.team6.bsep.backend.model;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.time.LocalDateTime;
+
 @Entity
 @Table(name = "password_shares")
 @Getter
@@ -28,6 +30,8 @@ public class PasswordShare {
     @Lob
     @Column(nullable = false)
     private String encryptedPassword;
+
+    private LocalDateTime sharedAt = LocalDateTime.now();
 
 
 }
