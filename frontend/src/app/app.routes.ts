@@ -81,6 +81,27 @@ export const routes: Routes = [
         loadComponent: () =>
           import('./csr/ca-csr/ca-csr').then(m => m.CaRequestsComponent)
       },
+      {
+        path: 'passwords',
+        loadComponent: () =>
+          import('./passwords/password-list/password-list').then(m => m.PasswordListComponent)
+      },
+      {
+        path: 'passwords/create',
+        loadComponent: () =>
+          import('./passwords/password-create/password-create').then(m => m.PasswordCreateComponent)
+      },
+      {
+        path: 'passwords/:id',
+        loadComponent: () =>
+          import('./passwords/password-detail/password-detail').then(m => m.PasswordDetailComponent)
+      },
+      {
+        path: 'passwords/:id/share',
+        loadComponent: () =>
+          import('./passwords/password-share-dialog/password-share-dialog').then(m => m.PasswordShareDialogComponent)
+      },
+
       { path: '', redirectTo: 'dashboard', pathMatch: 'full' }
     ]
   },

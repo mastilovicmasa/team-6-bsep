@@ -45,6 +45,23 @@ export class Login {
         localStorage.setItem('jwt', res.token);
         localStorage.setItem('jti', res.jti);
 
+        // dekodiranje tokena da izvučemo userId i rolu
+      try {
+        const payload = JSON.parse(atob(res.token.split('.')[1]));
+        console.log('Decoded JWT payload:', payload);
+
+        const userId = payload.userId || payload.sub;
+        if (userId) {
+          localStorage.setItem('userId', userId);
+        }
+
+        if (res.role) {
+          localStorage.setItem('role', res.role);
+        }
+      } catch (e) {
+        console.error('Failed to decode JWT:', e);
+      }
+
         if (res.mustChangePassword) {
           // ako je korisnik CA i mora promeniti lozinku → odmah na reset-password stranu
           this.router.navigate(['/change-password']);

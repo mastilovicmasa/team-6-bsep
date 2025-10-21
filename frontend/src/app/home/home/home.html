@@ -55,6 +55,21 @@
       routerLinkActive="active">
       View CA subordinates
     </a>
+
+    <a 
+      *ngIf="role === 'USER'" 
+      routerLink="passwords" 
+      routerLinkActive="active">
+      🔐 My Passwords
+    </a>
+
+    <a 
+      *ngIf="role === 'USER'" 
+      routerLink="passwords/create" 
+      routerLinkActive="active">
+      ➕ Add Password
+    </a>
+
   </div>
 
   <div class="right">

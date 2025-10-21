@@ -1,5 +1,6 @@
 package com.team6.bsep.backend.service;
 
+import com.team6.bsep.backend.dto.PasswordDecryptView;
 import com.team6.bsep.backend.model.PasswordEntry;
 import com.team6.bsep.backend.model.PasswordShare;
 import com.team6.bsep.backend.model.User;
@@ -23,7 +24,7 @@ public class PasswordService {
     private final PasswordShareRepository shareRepo;
     private final UserRepository userRepo;
 
-    // HELPER: trenutno prijavljeni korisnik
+    // Helper: trenutno prijavljeni korisnik
     private User getCurrentUser() {
         Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
         String email = (principal instanceof UserDetails userDetails)
@@ -33,51 +34,43 @@ public class PasswordService {
                 .orElseThrow(() -> new RuntimeException("User not found: " + email));
     }
 
-
-    // Kreiranje nove lozinke
+    // ✅ 1. Kreiranje nove lozinke (bez self-share)
     @Transactional
     public PasswordEntry createPasswordEntry(String siteName, String username, String encryptedPassword) {
         User owner = getCurrentUser();
 
-        // kreiramo entry
         PasswordEntry entry = PasswordEntry.builder()
                 .siteName(siteName)
                 .username(username)
                 .owner(owner)
+                .encryptedPassword(encryptedPassword)
                 .createdAt(LocalDateTime.now())
                 .build();
-
-        // kreiramo share za vlasnika (da i on ima pristup svojoj lozinki)
-        PasswordShare ownerShare = PasswordShare.builder()
-                .passwordEntry(entry)
-                .user(owner)
-                .encryptedPassword(encryptedPassword)
-                .sharedAt(LocalDateTime.now())
-                .build();
-
-        entry.setShares(List.of(ownerShare));
 
         return entryRepo.save(entry);
     }
 
-
-    // Deljenje lozinke sa drugim korisnikom
+    // ✅ 2. Deljenje lozinke sa drugim korisnikom (po EMAIL-u)
     @Transactional
-    public PasswordShare sharePassword(Long entryId, Long targetUserId, String encryptedPasswordForTarget) {
+    public PasswordShare sharePassword(Long entryId, String targetEmail, String encryptedPasswordForTarget) {
         User currentUser = getCurrentUser();
 
         PasswordEntry entry = entryRepo.findById(entryId)
                 .orElseThrow(() -> new RuntimeException("Password entry not found: " + entryId));
 
-        // sigurnosna provera — samo vlasnik može deliti
         if (!entry.getOwner().getId().equals(currentUser.getId())) {
             throw new RuntimeException("Only the owner can share this password");
         }
 
-        User targetUser = userRepo.findById(targetUserId)
-                .orElseThrow(() -> new RuntimeException("Target user not found: " + targetUserId));
+        User targetUser = userRepo.findByEmail(targetEmail)
+                .orElseThrow(() -> new RuntimeException("Target user not found with email: " + targetEmail));
 
-        // kreiramo novi share
+        // spreči duplikat share-a
+        boolean alreadyShared = shareRepo.existsByPasswordEntryAndUser(entry, targetUser);
+        if (alreadyShared) {
+            throw new RuntimeException("Password already shared with this user");
+        }
+
         PasswordShare share = PasswordShare.builder()
                 .passwordEntry(entry)
                 .user(targetUser)
@@ -88,52 +81,60 @@ public class PasswordService {
         return shareRepo.save(share);
     }
 
-
-    // Prikaz svih lozinki za korisnika
+    // ✅ 3. Prikaz svih lozinki za korisnika (vlasničke + deljene)
     @Transactional(readOnly = true)
-    public List<PasswordEntry> getVisiblePasswords() {
+    public List<PasswordEntry> getMyPasswords() {
         User user = getCurrentUser();
-        List<PasswordEntry> owned = entryRepo.findByOwner(user);
-        List<PasswordEntry> shared = entryRepo.findSharedWithUser(user);
-
-        // objedini i ukloni duplikate
-        return List.copyOf(
-                java.util.stream.Stream.concat(owned.stream(), shared.stream())
-                        .distinct()
-                        .toList()
-        );
+        return entryRepo.findByOwner(user);
     }
 
-
-    // Dohvati jednu lozinku (sa shareovima)
     @Transactional(readOnly = true)
-    public PasswordEntry getPasswordEntry(Long id) {
+    public List<PasswordEntry> getSharedPasswordsForUser() {
         User user = getCurrentUser();
+        return entryRepo.findSharedWithUser(user);
+
+    }
+
+    // ✅ 4. Dohvati jedan password (ako je vlasnik ili ako mu je podeljen)
+    @Transactional(readOnly = true)
+    public PasswordDecryptView getPasswordEntry(Long id) {
+        User currentUser = getCurrentUser();
 
         PasswordEntry entry = entryRepo.findById(id)
                 .orElseThrow(() -> new RuntimeException("Password entry not found: " + id));
 
-        // korisnik može videti ako je vlasnik ili ako mu je podeljeno
-        boolean isOwner = entry.getOwner().getId().equals(user.getId());
-        boolean isShared = entry.getShares().stream()
-                .anyMatch(s -> s.getUser().getId().equals(user.getId()));
+        boolean isOwner = entry.getOwner().getId().equals(currentUser.getId());
+        boolean isShared = shareRepo.existsByPasswordEntryAndUser(entry, currentUser);
 
         if (!isOwner && !isShared) {
-            throw new RuntimeException("Access denied to this password entry");
+            throw new RuntimeException("Access denied");
         }
 
-        return entry;
+        String encrypted;
+        if (isOwner) {
+            encrypted = entry.getEncryptedPassword();
+        } else {
+            encrypted = shareRepo.findByPasswordEntryAndUser(entry, currentUser)
+                    .map(PasswordShare::getEncryptedPassword)
+                    .orElseThrow(() -> new RuntimeException("Share not found for user"));
+        }
+
+        return PasswordDecryptView.builder()
+                .id(entry.getId())
+                .siteName(entry.getSiteName())
+                .username(entry.getUsername())
+                .encryptedPassword(encrypted)
+                .createdAt(entry.getCreatedAt())
+                .build();
     }
 
-
-    // Uklanjanje deljenja (revoke share)
+    // ✅ 5. Povlačenje deljenja (može samo vlasnik)
     @Transactional
     public void revokeShare(Long shareId) {
         User user = getCurrentUser();
         PasswordShare share = shareRepo.findById(shareId)
                 .orElseThrow(() -> new RuntimeException("Share not found: " + shareId));
 
-        // samo vlasnik password-a može povući deljenje
         if (!share.getPasswordEntry().getOwner().getId().equals(user.getId())) {
             throw new RuntimeException("Only the owner can revoke a share");
         }

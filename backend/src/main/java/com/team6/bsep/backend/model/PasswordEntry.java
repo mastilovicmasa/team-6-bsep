@@ -27,6 +27,9 @@ public class PasswordEntry {
 
     private LocalDateTime createdAt = LocalDateTime.now();
 
+    @Lob
+    @Column(nullable = false)
+    private String encryptedPassword;
 
     @OneToMany(mappedBy = "passwordEntry", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<PasswordShare> shares;

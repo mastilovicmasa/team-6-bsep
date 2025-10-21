@@ -3,9 +3,12 @@ package com.team6.bsep.backend.controller;
 import com.team6.bsep.backend.dto.*;
 import com.team6.bsep.backend.model.PasswordEntry;
 import com.team6.bsep.backend.model.PasswordShare;
+import com.team6.bsep.backend.repository.UserRepository;
 import com.team6.bsep.backend.service.PasswordService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -14,9 +17,11 @@ import java.util.stream.Collectors;
 @RestController
 @RequestMapping("/api/passwords")
 @RequiredArgsConstructor
+@PreAuthorize("hasRole('USER')")
 public class PasswordController {
 
     private final PasswordService passwordService;
+    private final UserRepository userRepo;
 
     // 1. Kreiranje nove lozinke
     @PostMapping
@@ -36,19 +41,34 @@ public class PasswordController {
             @PathVariable Long entryId,
             @RequestBody PasswordShareRequest request) {
 
+
+
         PasswordShare share = passwordService.sharePassword(
                 entryId,
-                request.getTargetUserId(),
+                request.getTargetEmail(),
                 request.getEncryptedPassword()
         );
 
         return ResponseEntity.ok(toDTO(share));
     }
 
-    // 3. Vraća sve lozinke vidljive korisniku (njegove + deljene)
-    @GetMapping
-    public ResponseEntity<List<PasswordEntryDTO>> getVisiblePasswords() {
-        List<PasswordEntryDTO> list = passwordService.getVisiblePasswords()
+    // vraca korinsikove lozinke
+    @Transactional(readOnly = true)
+    @GetMapping("/owned")
+    public ResponseEntity<List<PasswordEntryDTO>> getMyPasswords() {
+        List<PasswordEntryDTO> list = passwordService.getMyPasswords()
+                .stream()
+                .map(this::toDTO)
+                .collect(Collectors.toList());
+
+        return ResponseEntity.ok(list);
+    }
+
+    //vraca deljenje lozinke
+    @Transactional(readOnly = true)
+    @GetMapping("/shared")
+    public ResponseEntity<List<PasswordEntryDTO>> getSharedPasswords() {
+        List<PasswordEntryDTO> list = passwordService.getSharedPasswordsForUser()
                 .stream()
                 .map(this::toDTO)
                 .collect(Collectors.toList());
@@ -58,9 +78,9 @@ public class PasswordController {
 
     // 4. Vraća jedan entry sa svim shareovima
     @GetMapping("/{id}")
-    public ResponseEntity<PasswordEntryDTO> getPasswordEntry(@PathVariable Long id) {
-        PasswordEntry entry = passwordService.getPasswordEntry(id);
-        return ResponseEntity.ok(toDTO(entry));
+    public ResponseEntity<PasswordDecryptView> getPasswordEntry(@PathVariable Long id) {
+        PasswordDecryptView entry = passwordService.getPasswordEntry(id);
+        return ResponseEntity.ok(entry);
     }
 
     // 5. Opoziva deljenje lozinke
@@ -70,10 +90,7 @@ public class PasswordController {
         return ResponseEntity.noContent().build();
     }
 
-    // ------------------------
     // DTO maperi
-    // ------------------------
-
     private PasswordEntryDTO toDTO(PasswordEntry entry) {
         return PasswordEntryDTO.builder()
                 .id(entry.getId())

@@ -16,6 +16,8 @@ public interface PasswordShareRepository extends JpaRepository<PasswordShare, Lo
     // Lozinka podeljena sa konkretnim korisnikom
     Optional<PasswordShare> findByPasswordEntryAndUser(PasswordEntry entry, User user);
 
+    boolean existsByPasswordEntryAndUser(PasswordEntry entry, User user);
+
     // Sve lozinke podeljene korisniku
     List<PasswordShare> findByUser(User user);
 }

@@ -6,6 +6,6 @@ import lombok.*;
 @NoArgsConstructor
 @AllArgsConstructor
 public class PasswordShareRequest {
-    private Long targetUserId;
+    private String targetEmail;
     private String encryptedPassword;
 }
