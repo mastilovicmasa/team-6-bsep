@@ -65,23 +65,23 @@ public class PasswordController {
     }
 
     //vraca deljenje lozinke
-    @Transactional(readOnly = true)
     @GetMapping("/shared")
-    public ResponseEntity<List<PasswordEntryDTO>> getSharedPasswords() {
-        List<PasswordEntryDTO> list = passwordService.getSharedPasswordsForUser()
-                .stream()
-                .map(this::toDTO)
-                .collect(Collectors.toList());
-
+    @Transactional(readOnly = true)
+    public ResponseEntity<List<SharedPasswordDecryptView>> getSharedPasswords() {
+        List<SharedPasswordDecryptView> list = passwordService.getSharedPasswordsForUser();
         return ResponseEntity.ok(list);
     }
 
+
     // 4. Vraća jedan entry sa svim shareovima
     @GetMapping("/{id}")
-    public ResponseEntity<PasswordDecryptView> getPasswordEntry(@PathVariable Long id) {
-        PasswordDecryptView entry = passwordService.getPasswordEntry(id);
+    @Transactional(readOnly = true)
+    public ResponseEntity<PasswordEntryDTO> getPasswordEntry(@PathVariable Long id) {
+        PasswordEntryDTO entry = passwordService.getPasswordEntry(id);
+
         return ResponseEntity.ok(entry);
     }
+
 
     // 5. Opoziva deljenje lozinke
     @DeleteMapping("/share/{shareId}")
@@ -108,6 +108,7 @@ public class PasswordController {
         return PasswordShareDTO.builder()
                 .id(share.getId())
                 .userId(share.getUser().getId())
+                .userEmail(share.getUser().getEmail())     // 👈 novo
                 .encryptedPassword(share.getEncryptedPassword())
                 .sharedAt(share.getSharedAt())
                 .build();

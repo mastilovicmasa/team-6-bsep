@@ -1,4 +1,4 @@
-import { Component, Input } from '@angular/core';
+import { Component, EventEmitter, Input, OnInit, Output } from '@angular/core';
 import { PasswordService } from '../../shared/password.service';
 import { CryptoService } from '../../shared/crypto.service';
 import { firstValueFrom } from 'rxjs';
@@ -7,16 +7,19 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 
 @Component({
-  selector: 'app-password-share-dialog',  
+  selector: 'app-password-share-dialog',
   standalone: true,
   imports: [CommonModule, FormsModule],
-  templateUrl: './password-share-dialog.html'
+  templateUrl: './password-share-dialog.html',
+  styleUrls: ['./password-share-dialog.css']
 })
-export class PasswordShareDialogComponent {
+export class PasswordShareDialogComponent implements OnInit {
 
   @Input() entry!: PasswordEntry;
+  @Input() entryId!: number;
+  @Output() shared = new EventEmitter<void>();
 
-  targetEmail?: number;
+  targetEmail: string = '';
   privateKeyPem = '';
   decryptedPassword = '';
   isProcessing = false;
@@ -28,16 +31,23 @@ export class PasswordShareDialogComponent {
     private cryptoService: CryptoService
   ) {}
 
+  ngOnInit(): void {
+    this.passwordService.getPasswordById(this.entryId).subscribe({
+      next: (res) => { this.entry = res; },
+      error: (err) => {  console.error('Failed to load entery', err); }
+    });
+
+  }
+
   async onPrivateKeySelected(event: any) {
     const file = event.target.files[0];
     if (!file) return;
-
-    const content = await file.text();
-    this.privateKeyPem = content;
+    this.privateKeyPem = await file.text();
   }
 
   async sharePassword() {
-    if (!this.entry || !this.privateKeyPem || !this.targetEmail) {
+    console.log(this.entry);
+    if (!this.entry || !this.privateKeyPem || !this.targetEmail.trim()) {
       this.errorMessage = 'Missing input data.';
       return;
     }
@@ -47,33 +57,33 @@ export class PasswordShareDialogComponent {
     this.successMessage = '';
 
     try {
-      const currentUserId = parseInt(localStorage.getItem('userId') || '0', 10);
-      const share = this.entry.shares.find(s => s.userId === currentUserId);
-
-      if (!share) {
-        this.errorMessage = 'You do not have access to decrypt this password.';
-        return;
-      }
-
-      // Korisnik dešifruje lozinku svojim privatnim ključem
+      // 1️⃣ Dešifruj lozinku privatnim ključem vlasnika
       const decrypted = await this.cryptoService.decryptWithPrivateKey(
-        share.encryptedPassword,
+        this.entry.encryptedPassword!,
         this.privateKeyPem
       );
 
-      // Preuzima PEM sertifikat primaoca
-      const pem = await firstValueFrom(this.passwordService.getUserCertificate());
+      // 2️⃣ Preuzmi javni ključ korisnika kome se deli
+      const pem = await firstValueFrom(
+        this.passwordService.getUserPublicKeyByEmail(this.targetEmail)
+      );
 
-      // Ponovno enkriptuje lozinku javnim ključem primaoca
-      const encryptedForTarget = await this.cryptoService.encryptWithPublicKey(decrypted, pem);
+      // 3️⃣ Ponovo enkriptuje lozinku njegovim javnim ključem
+      const encryptedForTarget = await this.cryptoService.encryptWithPublicKey(
+        decrypted,
+        pem
+      );
 
-      // Šalje backendu novi PasswordShare
-      await firstValueFrom(this.passwordService.sharePassword(this.entry.id, {
-        targetUserId: this.targetEmail,
-        encryptedPassword: encryptedForTarget
-      }));
+      // 4️⃣ Šalje backendu
+      await firstValueFrom(
+        this.passwordService.sharePassword(this.entry.id, {
+          targetEmail: this.targetEmail,
+          encryptedPassword: encryptedForTarget
+        })
+      );
 
-      this.successMessage = 'Password successfully shared.';
+      this.successMessage = `Password successfully shared with ${this.targetEmail}.`;
+      this.shared.emit();
     } catch (error: any) {
       console.error('Error while sharing password:', error);
       this.errorMessage = 'Failed to share password.';

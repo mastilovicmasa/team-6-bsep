@@ -1,6 +1,7 @@
 export interface PasswordShare {
   id: number;
   userId: number;
+  userEmail: string;
   encryptedPassword: string;
   sharedAt: string;
 }
@@ -11,7 +12,17 @@ export interface PasswordEntry {
   username: string;
   ownerId: number;
   createdAt: string;
+  encryptedPassword: string;
   shares: PasswordShare[];
+}
+
+export interface SharedPassword {
+  shareId: number;
+  siteName: string;
+  username: string;
+  ownerEmail: string;
+  sharedAt: string;
+  encryptedPassword: string;
 }
 
 // Request DTO-ovi
@@ -22,6 +33,6 @@ export interface PasswordCreateRequest {
 }
 
 export interface PasswordShareRequest {
-  targetUserId: number;
+  targetEmail: string;
   encryptedPassword: string;
 }

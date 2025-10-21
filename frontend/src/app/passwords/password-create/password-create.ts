@@ -10,7 +10,8 @@ import { CommonModule } from '@angular/common';
   selector: 'app-password-create',
   standalone: true,
   imports: [CommonModule, ReactiveFormsModule],
-  templateUrl: './password-create.html'
+  templateUrl: './password-create.html',
+  styleUrls: ['./password-create.css'] 
 })
 export class PasswordCreateComponent {
 

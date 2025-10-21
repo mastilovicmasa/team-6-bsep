@@ -1,6 +1,8 @@
 package com.team6.bsep.backend.service;
 
-import com.team6.bsep.backend.dto.PasswordDecryptView;
+import com.team6.bsep.backend.dto.PasswordEntryDTO;
+import com.team6.bsep.backend.dto.PasswordShareDTO;
+import com.team6.bsep.backend.dto.SharedPasswordDecryptView;
 import com.team6.bsep.backend.model.PasswordEntry;
 import com.team6.bsep.backend.model.PasswordShare;
 import com.team6.bsep.backend.model.User;
@@ -55,6 +57,10 @@ public class PasswordService {
     public PasswordShare sharePassword(Long entryId, String targetEmail, String encryptedPasswordForTarget) {
         User currentUser = getCurrentUser();
 
+        if (currentUser.getEmail().equalsIgnoreCase(targetEmail)) {
+            throw new RuntimeException("You cannot share a password with yourself.");
+        }
+
         PasswordEntry entry = entryRepo.findById(entryId)
                 .orElseThrow(() -> new RuntimeException("Password entry not found: " + entryId));
 
@@ -81,7 +87,7 @@ public class PasswordService {
         return shareRepo.save(share);
     }
 
-    // ✅ 3. Prikaz svih lozinki za korisnika (vlasničke + deljene)
+
     @Transactional(readOnly = true)
     public List<PasswordEntry> getMyPasswords() {
         User user = getCurrentUser();
@@ -89,15 +95,27 @@ public class PasswordService {
     }
 
     @Transactional(readOnly = true)
-    public List<PasswordEntry> getSharedPasswordsForUser() {
+    public List<SharedPasswordDecryptView> getSharedPasswordsForUser() {
         User user = getCurrentUser();
-        return entryRepo.findSharedWithUser(user);
 
+        return shareRepo.findAllByUser(user)
+                .stream()
+                .map(ps -> SharedPasswordDecryptView.builder()
+                        .shareId(ps.getId())
+                        .siteName(ps.getPasswordEntry().getSiteName())
+                        .username(ps.getPasswordEntry().getUsername())
+                        .encryptedPassword(ps.getEncryptedPassword()) // 🔒 enkriptovano za ovog usera
+                        .sharedAt(ps.getSharedAt())
+                        .ownerEmail(ps.getPasswordEntry().getOwner().getEmail()) // 👈 dodatak
+                        .build())
+                .toList();
     }
 
-    // ✅ 4. Dohvati jedan password (ako je vlasnik ili ako mu je podeljen)
+
+
+    // Dohvati jedan password (ako je vlasnik ili ako mu je podeljen)
     @Transactional(readOnly = true)
-    public PasswordDecryptView getPasswordEntry(Long id) {
+    public PasswordEntryDTO getPasswordEntry(Long id) {
         User currentUser = getCurrentUser();
 
         PasswordEntry entry = entryRepo.findById(id)
@@ -110,6 +128,7 @@ public class PasswordService {
             throw new RuntimeException("Access denied");
         }
 
+        // Odredi enkriptovanu lozinku koju korisnik sme da vidi
         String encrypted;
         if (isOwner) {
             encrypted = entry.getEncryptedPassword();
@@ -119,14 +138,30 @@ public class PasswordService {
                     .orElseThrow(() -> new RuntimeException("Share not found for user"));
         }
 
-        return PasswordDecryptView.builder()
+        // Mapiraj share-ove (ako ih ima)
+        List<PasswordShareDTO> shares = entry.getShares() != null
+                ? entry.getShares().stream()
+                .map(s -> PasswordShareDTO.builder()
+                        .id(s.getId())
+                        .userId(s.getUser().getId())
+                        .userEmail(s.getUser().getEmail())
+                        .encryptedPassword(s.getEncryptedPassword())
+                        .sharedAt(s.getSharedAt())
+                        .build())
+                .toList()
+                : List.of();
+
+        return PasswordEntryDTO.builder()
                 .id(entry.getId())
                 .siteName(entry.getSiteName())
                 .username(entry.getUsername())
-                .encryptedPassword(encrypted)
+                .ownerId(entry.getOwner().getId())
                 .createdAt(entry.getCreatedAt())
+                .encryptedPassword(encrypted)
+                .shares(shares)
                 .build();
     }
+
 
     // ✅ 5. Povlačenje deljenja (može samo vlasnik)
     @Transactional

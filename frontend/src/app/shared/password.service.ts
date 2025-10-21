@@ -5,7 +5,8 @@ import {
   PasswordEntry, 
   PasswordCreateRequest, 
   PasswordShare, 
-  PasswordShareRequest 
+  PasswordShareRequest,
+  SharedPassword
 } from './password.model';
 
 @Injectable({
@@ -32,10 +33,10 @@ export class PasswordService {
     return this.http.get<PasswordEntry[]>(`${this.baseUrl}/owned`, { headers });
   }
 
-  getSharedPasswords(): Observable<PasswordEntry[]> {
+  getSharedPasswords(): Observable<SharedPassword[]> {
     const token = localStorage.getItem('jwt');
     const headers = new HttpHeaders({ Authorization: `Bearer ${token}` });
-    return this.http.get<PasswordEntry[]>(`${this.baseUrl}/shared`, { headers });
+    return this.http.get<SharedPassword[]>(`${this.baseUrl}/shared`, { headers });
   }
   // Dohvatanje jedne lozinke po ID-ju
   getPasswordById(id: number): Observable<any> {
@@ -63,7 +64,13 @@ export class PasswordService {
 
   // Preuzimanje javnog sertifikata (PEM)
   getUserCertificate(): Observable<string> {
-  const headers = this.getAuthHeaders();
-  return this.http.get(`${this.usersUrl}/public-key`, { headers, responseType: 'text' });
-}
+    const headers = this.getAuthHeaders();
+    return this.http.get(`${this.usersUrl}/public-key`, { headers, responseType: 'text' });
+  }
+
+  getUserPublicKeyByEmail(email: string): Observable<string> {
+    const headers = this.getAuthHeaders();
+    return this.http.get(`${this.usersUrl}/public-key/${email}`, { headers, responseType: 'text' });
+  }
+
 }

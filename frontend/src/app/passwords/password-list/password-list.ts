@@ -1,22 +1,27 @@
 import { Component, OnInit } from '@angular/core';
 import { Router, RouterModule } from '@angular/router';
 import { PasswordService } from '../../shared/password.service';
-import { PasswordEntry } from '../../shared/password.model';
+import { PasswordEntry, SharedPassword } from '../../shared/password.model';
 import { firstValueFrom } from 'rxjs';
 import { CommonModule, DatePipe } from '@angular/common';
+import { PasswordCreateComponent } from '../password-create/password-create';
+import { PasswordSharedDecryptDialog } from '../password-shared-decrypt-dialog/password-shared-decrypt-dialog';
 
 @Component({
   selector: 'app-password-list',
   standalone: true,
-  imports: [CommonModule, RouterModule, DatePipe],
-  templateUrl: './password-list.html'
+  imports: [CommonModule, RouterModule, DatePipe, PasswordCreateComponent, PasswordSharedDecryptDialog],
+  templateUrl: './password-list.html',
+  styleUrls: ['./password-list.css']
 })
 export class PasswordListComponent implements OnInit {
 
   passwords: PasswordEntry[] = [];
-  shared: PasswordEntry[] = [];
+  shared: SharedPassword[] = [];
   isLoading = false;
   errorMessage = '';
+  showSharedDialog = false;
+  selectedShared?: SharedPassword;
 
   constructor(
     private passwordService: PasswordService,
@@ -41,6 +46,24 @@ export class PasswordListComponent implements OnInit {
   openDetails(entry: PasswordEntry) {
     this.router.navigate(['/passwords', entry.id]);
   }
+
+  openSharedDialog(entry: SharedPassword) {
+    this.selectedShared = entry;
+    this.showSharedDialog = true;
+  }
+
+ showAddPassword = false;
+
+  toggleAddPassword() {
+    this.showAddPassword = !this.showAddPassword;
+  }
+
+  onPasswordCreated() {
+    this.showAddPassword = false;
+    this.ngOnInit(); // refresh liste
+  }
+
+
   
 
 }

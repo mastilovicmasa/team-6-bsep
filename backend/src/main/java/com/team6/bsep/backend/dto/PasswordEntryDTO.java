@@ -14,5 +14,6 @@ public class PasswordEntryDTO {
     private String username;
     private Long ownerId;
     private LocalDateTime createdAt;
+    private String encryptedPassword;
     private List<PasswordShareDTO> shares;
 }

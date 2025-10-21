@@ -12,11 +12,12 @@ import java.time.LocalDateTime;
 @Builder
 @AllArgsConstructor
 @NoArgsConstructor
-public class PasswordDecryptView {
-    private Long id;
+public class SharedPasswordDecryptView {
+    private Long shareId;
     private String siteName;
     private String username;
-    private String encryptedPassword; // uvek onaj koji korisnik može da dekriptuje
-    private LocalDateTime createdAt;
+    private String ownerEmail;
+    private String encryptedPassword;
+    private LocalDateTime sharedAt;
 }
 

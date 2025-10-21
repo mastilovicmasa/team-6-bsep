@@ -51,6 +51,31 @@ public class UserCertificateController {
         return ResponseEntity.ok(writer.toString());
     }
 
+    @GetMapping("/public-key/{email}")
+    @Transactional(readOnly = true)
+    @PreAuthorize("hasRole('USER')")
+    public ResponseEntity<String> getPublicKeyByEmail(@PathVariable String email) throws Exception {
+        var user = userRepo.findByEmail(email)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        var certEntity = eeCertRepo.findByCsr_User_Id(user.getId())
+                .orElseThrow(() -> new RuntimeException("Certificate not found"));
+
+        CertificateFactory cf = CertificateFactory.getInstance("X.509");
+        var cert = (X509Certificate) cf.generateCertificate(
+                new ByteArrayInputStream(certEntity.getPem().getBytes(StandardCharsets.UTF_8))
+        );
+
+        byte[] encoded = cert.getPublicKey().getEncoded();
+        StringWriter writer = new StringWriter();
+        try (JcaPEMWriter pemWriter = new JcaPEMWriter(writer)) {
+            pemWriter.writeObject(new PemObject("PUBLIC KEY", encoded));
+        }
+
+        return ResponseEntity.ok(writer.toString());
+    }
+
+
     private User getCurrentUser() {
         Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
         String email = (principal instanceof UserDetails userDetails)

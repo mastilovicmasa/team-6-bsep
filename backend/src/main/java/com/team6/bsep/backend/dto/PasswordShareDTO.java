@@ -10,6 +10,7 @@ import java.time.LocalDateTime;
 public class PasswordShareDTO {
     private Long id;
     private Long userId;
+    private String userEmail;
     private String encryptedPassword;
     private LocalDateTime sharedAt;
 }
