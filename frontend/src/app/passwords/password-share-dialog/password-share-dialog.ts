@@ -37,14 +37,11 @@ export class PasswordShareDialogComponent {
   }
 
   async sharePassword() {
-    // if (!this.entry || !this.privateKeyPem || !this.targetEmail) {
-    //   this.errorMessage = 'Missing input data.';
-    //   return;
-    // }
-
-    if(!this.targetEmail){
+    if (!this.entry || !this.privateKeyPem || !this.targetEmail) {
+      this.errorMessage = 'Missing input data.';
       return;
     }
+
     this.isProcessing = true;
     this.errorMessage = '';
     this.successMessage = '';
