@@ -35,7 +35,7 @@ export interface CreateCaUserRequest {
 @Injectable({ providedIn: 'root' })
 export class AuthService {
  
-  private readonly API = 'http://localhost:8080/api/auth';
+  private readonly API = 'https://localhost:8443/api/auth';
 
   constructor(private http: HttpClient) {}
 

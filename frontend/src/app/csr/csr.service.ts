@@ -24,7 +24,7 @@ export interface CsrRequestDto {
 })
 export class CsrService {
   private http = inject(HttpClient);
-  private baseUrl = 'http://localhost:8080/api';
+  private baseUrl = 'https://localhost:8443/api';
 
   getCaList(): Observable<CaOption[]> {
     const token = localStorage.getItem('jwt');

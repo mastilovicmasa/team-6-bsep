@@ -14,8 +14,8 @@ import {
 })
 export class PasswordService {
 
-  private baseUrl = 'http://localhost:8080/api/passwords';
-  private usersUrl = 'http://localhost:8080/api/users';
+  private baseUrl = 'https://localhost:8443/api/passwords';
+  private usersUrl = 'https://localhost:8443/api/users';
 
   constructor(private http: HttpClient) {}
 
