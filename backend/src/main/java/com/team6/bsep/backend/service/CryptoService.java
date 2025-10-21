@@ -196,6 +196,23 @@ public class CryptoService {
         return ks;
     }
 
+    public KeyStore loadKeystore(String path, String password) throws Exception {
+        KeyStore ks = KeyStore.getInstance("PKCS12");
+        try (var in = new java.io.FileInputStream(path)) {
+            ks.load(in, password.toCharArray());
+        }
+        return ks;
+    }
+
+    public X509Certificate loadCertificateFromKeystore(String path, String alias, String password) throws Exception {
+        KeyStore ks = loadKeystore(path, password);
+        return (X509Certificate) ks.getCertificate(alias);
+    }
+
+    public PrivateKey loadPrivateKeyFromKeystore(String path, String alias, String password) throws Exception {
+        KeyStore ks = loadKeystore(path, password);
+        return (PrivateKey) ks.getKey(alias, password.toCharArray());
+    }
 
 
 }

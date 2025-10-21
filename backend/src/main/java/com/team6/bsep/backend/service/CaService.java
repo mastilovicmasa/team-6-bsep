@@ -28,6 +28,7 @@ import java.security.SecureRandom;
 
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -248,7 +249,5 @@ public class CaService {
 
         return subordinates;
     }
-
-
 
 }

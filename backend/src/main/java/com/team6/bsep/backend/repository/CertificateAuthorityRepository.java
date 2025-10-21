@@ -14,4 +14,6 @@ public interface CertificateAuthorityRepository extends JpaRepository<Certificat
             "FROM CertificateAuthority c WHERE c.subjectDn = :subjectDn")
     Optional<CaInfo> findProjectedBySubjectDn(String subjectDn);
     Optional<CertificateAuthority> findByRootTrue();
+    Optional<CertificateAuthority> findBySerialHex(String serialHex);
+
 }
