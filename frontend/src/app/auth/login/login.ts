@@ -42,32 +42,33 @@ export class Login {
         this.submitting = false;
 
         // čuvanje tokena i jti
-        localStorage.setItem('jwt', res.token);
+        const token = res.jwt || res.token; // ✅ koristi ispravno polje
+        localStorage.setItem('jwt', token);
         localStorage.setItem('jti', res.jti);
 
         // dekodiranje tokena da izvučemo userId i rolu
-      try {
-        const payload = JSON.parse(atob(res.token.split('.')[1]));
-        console.log('Decoded JWT payload:', payload);
+        try {
+          const payload = JSON.parse(atob(token.split('.')[1])); // ✅ koristi token koji si gore definisala
+          console.log('Decoded JWT payload:', payload);
 
-        const userId = payload.userId || payload.sub;
-        if (userId) {
-          localStorage.setItem('userId', userId);
-        }
+          const userId = payload.userId || payload.sub;
+          if (userId) {
+            localStorage.setItem('userId', userId);
+          }
 
-        if (res.role) {
-          localStorage.setItem('role', res.role);
+          if (res.role) {
+            localStorage.setItem('role', res.role);
+          }
+        } catch (e) {
+          console.error('Failed to decode JWT:', e);
         }
-      } catch (e) {
-        console.error('Failed to decode JWT:', e);
-      }
 
         if (res.mustChangePassword) {
           // ako je korisnik CA i mora promeniti lozinku → odmah na reset-password stranu
           this.router.navigate(['/change-password']);
         } else {
           this.successMsg = 'Logged in successfully!';
-          this.router.navigate(['home']);
+          this.router.navigate(['/dashboard']); // ✅ sada će preusmeriti ispravno
         }
       },
       error: (err) => {
@@ -80,7 +81,6 @@ export class Login {
         this.form.patchValue({ recaptchaToken: '' });
       }
     });
-
   }
 
   onCaptchaResolved(token: string | null) {

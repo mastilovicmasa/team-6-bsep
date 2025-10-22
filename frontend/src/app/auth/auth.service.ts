@@ -19,6 +19,7 @@ export interface LoginRequest {
 
 export interface JwtResponse {
   token: string;
+  jwt: string;
   expiresIn: number;
   jti: string;
   role: string;
