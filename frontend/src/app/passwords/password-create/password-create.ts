@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, EventEmitter, Output } from '@angular/core';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { PasswordService } from '../../shared/password.service';
 import { CryptoService } from '../../shared/crypto.service';
@@ -19,6 +19,7 @@ export class PasswordCreateComponent {
   isSaving = false;
   successMessage = '';
   errorMessage = '';
+  @Output() passwordCreated = new EventEmitter<void>();
 
   constructor(
     private fb: FormBuilder,
@@ -56,10 +57,11 @@ export class PasswordCreateComponent {
 
       // Slanje backendu
       const result: PasswordEntry = await firstValueFrom(this.passwordService.createPassword(request));
-      console.log(result);
+      //console.log(result);
 
       this.successMessage = `Password for ${result.siteName} successfully saved.`;
       this.form.reset();
+      this.passwordCreated.emit();
 
     } catch (error: any) {
       console.error('Error while saving password:', error);

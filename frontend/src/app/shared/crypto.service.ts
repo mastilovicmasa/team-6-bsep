@@ -11,6 +11,7 @@ export class CryptoService {
     return pem.replace(/-----(BEGIN|END)[\w\s]+-----/g, '').replace(/\s+/g, '');
   }
 
+  // Pretvara base64 u binarni niz bajtova
   private base64ToArrayBuffer(base64: string): ArrayBuffer {
     const binary = atob(base64);
     const len = binary.length;
@@ -53,7 +54,7 @@ export class CryptoService {
   }
 
 
-  // Enkripcija i dekripcija (RSA)
+  // Enkripcija i dekripcija 
   async encryptWithPublicKey(plaintext: string, publicKeyPem: string): Promise<string> {
     const key = await this.importPublicKeyPem(publicKeyPem);
     const encoded = new TextEncoder().encode(plaintext);
