@@ -95,15 +95,15 @@ public class AuthService {
 
     @Transactional
     public void register(RegisterRequest req) {
-        // normalizuj email da izbegneš duplikate zbog velikih/malih slova
+        // normalizazija emaila
         var email = req.getEmail().trim().toLowerCase();
 
-        // 1) duplikat email-a (brza provera)
+        // duplikat email-a?
         if (users.existsByEmail(email)) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Email already registered");
         }
 
-        // 2) heš lozinke i kreiranje korisnika (status = PENDING po default-u iz modela)
+        // heš lozinke i kreiranje korisnika
         var user = User.builder()
                 .email(email)
                 .passwordHash(encoder.encode(req.getPassword()))
@@ -113,13 +113,12 @@ public class AuthService {
                 .build();
 
         try {
-            users.save(user); // INSERT users
+            users.save(user);
         } catch (DataIntegrityViolationException e) {
-            // fallback ako se desi "trka" i udari unique constraint
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Email already registered");
         }
 
-        // 3) generiši aktivacioni token (jednokratan, vremenski ograničen)
+        // generiši aktivacioni token
         var tokenValue = UUID.randomUUID().toString();
         var token = VerificationToken.builder()
                 .token(tokenValue)
@@ -127,9 +126,9 @@ public class AuthService {
                 .expiresAt(Instant.now().plus(Duration.ofHours(expiryHours)))
                 .build();
 
-        tokens.save(token); // INSERT verification_tokens
+        tokens.save(token);
 
-        // 4) za razvoj: ispiši kompletan link u log
+
         var activationLink = backendBaseUrl + "/api/auth/verify?token=" + tokenValue;
         try {
             emailService.sendActivation(email, activationLink);

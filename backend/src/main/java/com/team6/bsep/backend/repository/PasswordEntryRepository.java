@@ -10,7 +10,6 @@ import org.springframework.data.repository.query.Param;
 import java.util.List;
 
 public interface PasswordEntryRepository extends JpaRepository<PasswordEntry, Long> {
-
     // Sve lozinke koje je korisnik kreirao
     List<PasswordEntry> findByOwner(User owner);
 

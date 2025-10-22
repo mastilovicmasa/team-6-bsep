@@ -26,7 +26,7 @@ public class PasswordService {
     private final PasswordShareRepository shareRepo;
     private final UserRepository userRepo;
 
-    // Helper: trenutno prijavljeni korisnik
+
     private User getCurrentUser() {
         Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
         String email = (principal instanceof UserDetails userDetails)
@@ -36,7 +36,7 @@ public class PasswordService {
                 .orElseThrow(() -> new RuntimeException("User not found: " + email));
     }
 
-    // ✅ 1. Kreiranje nove lozinke (bez self-share)
+    // Kreiranje nove lozinke
     @Transactional
     public PasswordEntry createPasswordEntry(String siteName, String username, String encryptedPassword) {
         User owner = getCurrentUser();
@@ -52,7 +52,7 @@ public class PasswordService {
         return entryRepo.save(entry);
     }
 
-    // ✅ 2. Deljenje lozinke sa drugim korisnikom (po EMAIL-u)
+    // Deljenje lozinke sa drugim korisnikom (po EMAIL-u)
     @Transactional
     public PasswordShare sharePassword(Long entryId, String targetEmail, String encryptedPasswordForTarget) {
         User currentUser = getCurrentUser();
@@ -71,7 +71,7 @@ public class PasswordService {
         User targetUser = userRepo.findByEmail(targetEmail)
                 .orElseThrow(() -> new RuntimeException("Target user not found with email: " + targetEmail));
 
-        // spreči duplikat share-a
+        // sprecavanje duplikat share-a
         boolean alreadyShared = shareRepo.existsByPasswordEntryAndUser(entry, targetUser);
         if (alreadyShared) {
             throw new RuntimeException("Password already shared with this user");
@@ -104,9 +104,9 @@ public class PasswordService {
                         .shareId(ps.getId())
                         .siteName(ps.getPasswordEntry().getSiteName())
                         .username(ps.getPasswordEntry().getUsername())
-                        .encryptedPassword(ps.getEncryptedPassword()) // 🔒 enkriptovano za ovog usera
+                        .encryptedPassword(ps.getEncryptedPassword())
                         .sharedAt(ps.getSharedAt())
-                        .ownerEmail(ps.getPasswordEntry().getOwner().getEmail()) // 👈 dodatak
+                        .ownerEmail(ps.getPasswordEntry().getOwner().getEmail())
                         .build())
                 .toList();
     }
@@ -163,7 +163,7 @@ public class PasswordService {
     }
 
 
-    // ✅ 5. Povlačenje deljenja (može samo vlasnik)
+    // Povlačenje deljenja
     @Transactional
     public void revokeShare(Long shareId) {
         User user = getCurrentUser();

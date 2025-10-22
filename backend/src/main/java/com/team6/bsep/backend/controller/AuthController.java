@@ -22,7 +22,7 @@ public class AuthController {
     @PostMapping("/register")
     public ResponseEntity<Void> register(@Valid @RequestBody RegisterRequest req) {
         auth.register(req);                // baca 400/409 po potrebi
-        return ResponseEntity.status(HttpStatus.CREATED).build(); // 201 bez tela
+        return ResponseEntity.status(HttpStatus.CREATED).build(); // 201
     }
 
     @GetMapping("/verify")
