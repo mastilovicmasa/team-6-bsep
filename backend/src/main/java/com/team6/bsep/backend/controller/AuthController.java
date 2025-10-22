@@ -32,7 +32,7 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<?> login(@RequestBody LoginRequest request) {
+    public ResponseEntity<?> login(@Valid @RequestBody LoginRequest request) {
         return auth.login(
                 request.getEmail(),
                 request.getPassword(),
@@ -61,7 +61,7 @@ public class AuthController {
 
     @PostMapping("/change-password")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<Void> changePassword(@RequestBody ChangePasswordRequest req) {
+    public ResponseEntity<Void> changePassword(@Valid @RequestBody ChangePasswordRequest req) {
         auth.changePassword(req);
         return ResponseEntity.ok().build();
     }

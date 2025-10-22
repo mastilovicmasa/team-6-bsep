@@ -5,6 +5,7 @@ import com.team6.bsep.backend.model.PasswordEntry;
 import com.team6.bsep.backend.model.PasswordShare;
 import com.team6.bsep.backend.repository.UserRepository;
 import com.team6.bsep.backend.service.PasswordService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -25,7 +26,7 @@ public class PasswordController {
 
     // 1. Kreiranje nove lozinke
     @PostMapping
-    public ResponseEntity<PasswordEntryDTO> createPassword(@RequestBody PasswordCreateRequest request) {
+    public ResponseEntity<PasswordEntryDTO> createPassword(@Valid @RequestBody PasswordCreateRequest request) {
         PasswordEntry entry = passwordService.createPasswordEntry(
                 request.getSiteName(),
                 request.getUsername(),
@@ -38,6 +39,7 @@ public class PasswordController {
     // 2. Deljenje lozinke sa drugim korisnikom
     @PostMapping("/{entryId}/share")
     public ResponseEntity<PasswordShareDTO> sharePassword(
+            @Valid
             @PathVariable Long entryId,
             @RequestBody PasswordShareRequest request) {
 
