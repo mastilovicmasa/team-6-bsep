@@ -16,6 +16,7 @@ public interface UserRepository extends JpaRepository<User, Long>{
     boolean existsByEmail(String email);
     @Query("SELECT u FROM User u WHERE u.issuerCa = :issuerCa")
     List<User> findAllByIssuerCa(@Param("issuerCa") CertificateAuthority issuerCa);
+    Optional<User> findByCertificateAuthority(CertificateAuthority cert);
 
 
 }

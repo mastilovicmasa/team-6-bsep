@@ -28,6 +28,13 @@ export class CaUsers implements OnInit{
       next: (users) => {
         this.caUsers = users;
         this.loading = false;
+        this.caUsers.forEach(user => {
+        if (user.hasCaCertificate && user.certificateSerial) {
+          this.caUsersService.checkRevoked(user.certificateSerial).subscribe(isRevoked => {
+            user.revoked = isRevoked;
+          });
+        }
+    });
       },
       error: (err) => {
         console.error(err);
@@ -92,6 +99,59 @@ export class CaUsers implements OnInit{
           error: (err) => {
             console.error(err);
             Swal.fire('Error', err.error?.error || 'Failed to issue CA certificate.', 'error');
+          }
+        });
+      }
+    });
+  }
+
+  revokeCertificate(user: any) {
+    Swal.fire({
+      title: `Revoke certificate for ${user.email}?`,
+      html: `
+        <div class="text-left mt-2">
+          <label class="block mb-2 font-medium">Revocation reason:</label>
+          <select id="revokeReason" class="swal2-select">
+            <option value="keyCompromise">Key Compromise</option>
+            <option value="caCompromise">CA Compromise</option>
+            <option value="affiliationChanged">Affiliation Changed</option>
+            <option value="superseded">Superseded</option>
+            <option value="cessationOfOperation">Cessation of Operation</option>
+            <option value="certificateHold">Certificate Hold</option>
+            <option value="unspecified" selected>Unspecified</option>
+          </select>
+        </div>
+      `,
+      showCancelButton: true,
+      confirmButtonText: 'Revoke',
+      cancelButtonText: 'Cancel',
+      focusConfirm: false,
+      preConfirm: () => {
+        const reason = (document.getElementById('revokeReason') as HTMLSelectElement).value;
+        if (!reason) {
+          Swal.showValidationMessage('You must select a reason for revocation');
+          return false;
+        }
+        return { reason };
+      }
+    }).then(result => {
+      if (result.isConfirmed && result.value?.reason) {
+        const reason = result.value.reason;
+
+        this.caUsersService.revokeCertificate(user.certificateSerial, reason).subscribe({
+          next: () => {
+            Swal.fire('Success',`Certificate for ${user.email} has been revoked.`, 'success');
+
+            user.CaCertificate = false;
+            user.revoked = true;
+            this.loadCaUsers();
+
+          },
+          error: (err) => {
+            console.error(err);
+            alert(`Error revoking certificate: ${err.error?.message || err.message}`);
+            Swal.fire('Error',`Error revoking certificate: ${err.error?.message || err.message}`, 'error');
+
           }
         });
       }

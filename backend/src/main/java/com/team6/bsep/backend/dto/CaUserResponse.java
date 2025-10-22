@@ -14,4 +14,5 @@ public class CaUserResponse {
     private String lastName;
     private String organization;
     private boolean hasCaCertificate;
+    private String certificateSerial;
 }

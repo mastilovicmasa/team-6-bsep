@@ -52,7 +52,9 @@ public class CaService {
                         user.getFirstName(),
                         user.getLastName(),
                         user.getOrganization(),
-                        user.getCertificateAuthority() != null // ako ima CA sertifikat
+                        user.getCertificateAuthority() != null,// ako ima CA sertifikat
+                        user.getCertificateAuthority() != null ?
+                                user.getCertificateAuthority().getSerialHex() : null
                 ))
                 .toList();
     }
@@ -103,6 +105,9 @@ public class CaService {
         if (issuerCa.getPathLenConstraint() <= 0)
             throw new IllegalStateException("This CA cannot issue further CA certificates (pathLenConstraint=0).");
 
+        if (issuerCa.getRevokedAt() != null) {
+            throw new IllegalStateException("This CA certificate has been revoked and cannot issue new certificates.");
+        }
         // 🎯 2. Target korisnik
         User targetUser = userRepo.findByEmail(targetEmail)
                 .orElseThrow(() -> new IllegalArgumentException("Target user not found: " + targetEmail));

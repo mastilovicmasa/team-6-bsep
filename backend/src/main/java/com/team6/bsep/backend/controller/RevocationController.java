@@ -15,10 +15,12 @@ public class RevocationController {
     @PostMapping("/{serialNumber}")
     public ResponseEntity<String> revokeCertificate(
             @PathVariable String serialNumber,
-            @RequestParam String reason) {
+            @RequestParam String reason
+    ) throws Exception {
         service.revokeCertificate(serialNumber, reason);
         return ResponseEntity.ok("Certificate revoked successfully");
     }
+ 
 
     @GetMapping("/status/{serialNumber}")
     public ResponseEntity<Boolean> checkRevoked(@PathVariable String serialNumber) {

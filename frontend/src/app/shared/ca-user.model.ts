@@ -5,4 +5,6 @@ export interface CaUser {
   lastName: string;
   organization: string;
   hasCaCertificate: boolean; // backend će vratiti true/false
+  certificateSerial?: string;
+  revoked?: boolean;
 }

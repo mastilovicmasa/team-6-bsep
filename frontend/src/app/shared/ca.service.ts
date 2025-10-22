@@ -70,5 +70,22 @@ export class CaService {
     return this.http.post(`${this.api}/api/ca/create-subordinate`, userData, { headers });
   }
 
+  revokeCertificate(serialHex: string, reason: string): Observable<any> {
+    const token = localStorage.getItem('jwt');
+    const headers = new HttpHeaders({
+      Authorization: `Bearer ${token}`
+    });
+    const url = `${this.api}/api/admin/revoke/${serialHex}?reason=${encodeURIComponent(reason)}`;
+    return this.http.post(url, {}, { headers, responseType: 'text' });
+  }
+
+  checkRevoked(serialHex: string): Observable<boolean> {
+    const token = localStorage.getItem('jwt');
+    const headers = new HttpHeaders({
+      Authorization: `Bearer ${token}`
+    });
+    return this.http.get<boolean>(`${this.api}/api/admin/revoke/status/${serialHex}`, { headers });
+}
+
 
 }

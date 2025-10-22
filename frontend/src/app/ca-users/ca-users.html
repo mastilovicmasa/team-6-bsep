@@ -34,17 +34,28 @@
             <span *ngIf="user.hasCaCertificate" class="badge badge-success">
               <i class="fa-solid fa-check"></i> Issued
             </span>
-            <span *ngIf="!user.hasCaCertificate" class="badge badge-muted">
+            <span *ngIf="!user.hasCaCertificate && !user.revoked" class="badge badge-muted">
               <i class="fa-regular fa-circle-xmark"></i> None
             </span>
+            <span *ngIf="user.revoked" class="badge badge-muted">
+              <i class="fa-regular fa-circle-xmark"></i> Revoked
+            </span>
           </td>
-          <td class="text-center">
+          <td class="text-center" style="display: flex; justify-content: center; gap: 0.6rem">
             <button
               class="btn-action"
               (click)="issueCertificate(user)"
               [disabled]="user.hasCaCertificate"
             >
               Issue Certificate
+            </button>
+            <button
+              class="btn-action"
+              *ngIf="user.hasCaCertificate"
+              (click)="revokeCertificate(user)"
+              [disabled] = "user.revoked"
+            >
+               {{ user.revoked ? 'Revoked' : 'Revoke' }}
             </button>
           </td>
         </tr>

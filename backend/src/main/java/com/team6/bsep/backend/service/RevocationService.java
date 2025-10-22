@@ -2,8 +2,10 @@ package com.team6.bsep.backend.service;
 
 import com.team6.bsep.backend.model.CertificateAuthority;
 import com.team6.bsep.backend.model.RevokedCertificate;
+import com.team6.bsep.backend.model.User;
 import com.team6.bsep.backend.repository.CertificateAuthorityRepository;
 import com.team6.bsep.backend.repository.RevokedCertificateRepository;
+import com.team6.bsep.backend.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.bouncycastle.asn1.x509.CRLReason;
 import org.bouncycastle.asn1.x509.Extension;
@@ -16,12 +18,16 @@ import org.bouncycastle.cert.jcajce.JcaX509CRLConverter;
 import org.bouncycastle.operator.ContentSigner;
 import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.io.FileOutputStream;
 import java.math.BigInteger;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.security.PrivateKey;
 import java.security.cert.X509CRL;
 import java.security.cert.X509Certificate;
+import java.time.Instant;
 import java.time.ZoneId;
 import java.util.Date;
 import java.util.List;
@@ -37,11 +43,13 @@ public class RevocationService {
     private final RevokedCertificateRepository revokedRepo;
     private final CertificateAuthorityRepository caRepo;
     private final CryptoService cryptoService;
+    private final UserRepository userRepo;
 
     /**
      * Revokes a certificate by serial number and stores it in the revoked list.
      * Optionally updates the CRL for the issuer CA.
      */
+    @Transactional
     public void revokeCertificate(String serialNumber, String reason) throws Exception {
         if (revokedRepo.existsBySerialNumber(serialNumber)) {
             throw new IllegalStateException("Certificate already revoked");
@@ -51,6 +59,7 @@ public class RevocationService {
         CertificateAuthority cert = caRepo.findBySerialHex(serialNumber)
                 .orElseThrow(() -> new IllegalArgumentException("Certificate not found with serial: " + serialNumber));
 
+
         // Save revocation record
         revokedRepo.save(new RevokedCertificate(serialNumber, reason));
 
@@ -58,6 +67,16 @@ public class RevocationService {
         CertificateAuthority issuer = cert.getIssuer();
         if (issuer != null) {
             generateAndSaveCRL(issuer);
+        }
+
+        cert.setRevokedAt(Instant.now());
+        caRepo.save(cert);
+
+        var ownerOpt = userRepo.findByCertificateAuthority(cert);
+        if (ownerOpt.isPresent()) {
+            var owner = ownerOpt.get();
+            owner.setCertificateAuthority(null);
+            userRepo.save(owner);
         }
     }
 
@@ -73,6 +92,8 @@ public class RevocationService {
      */
     public X509CRL generateAndSaveCRL(CertificateAuthority issuerCa) throws Exception {
         // Decrypt and load keystore info
+        Files.createDirectories(Path.of("data/crl"));
+
         String issuerPass = cryptoService.decrypt(issuerCa.getKeystorePasswordEnc());
         PrivateKey issuerKey = cryptoService.loadPrivateKeyFromKeystore(
                 issuerCa.getKeystorePath(),
@@ -100,12 +121,12 @@ public class RevocationService {
                     0
             );
         }
-
-        // Add CRL distribution point (optional)
-        GeneralName dpName = new GeneralName(GeneralName.uniformResourceIdentifier,
-                "http://localhost:8080/api/admin/revoke/crl");
-        GeneralNames gns = new GeneralNames(dpName);
-        builder.addExtension(Extension.cRLDistributionPoints, false, gns);
+//
+//        // Add CRL distribution point (optional)
+//        GeneralName dpName = new GeneralName(GeneralName.uniformResourceIdentifier,
+//                "http://localhost:8080/api/admin/revoke/crl");
+//        GeneralNames gns = new GeneralNames(dpName);
+//        builder.addExtension(Extension.cRLDistributionPoints, false, gns);
 
         // Sign CRL
         ContentSigner signer = new JcaContentSignerBuilder("SHA256withRSA").build(issuerKey);

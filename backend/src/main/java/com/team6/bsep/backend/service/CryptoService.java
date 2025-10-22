@@ -1,9 +1,7 @@
 package com.team6.bsep.backend.service;
 
 import org.bouncycastle.asn1.x500.X500Name;
-import org.bouncycastle.asn1.x509.BasicConstraints;
-import org.bouncycastle.asn1.x509.Extension;
-import org.bouncycastle.asn1.x509.KeyUsage;
+import org.bouncycastle.asn1.x509.*;
 import org.bouncycastle.cert.jcajce.JcaX509CertificateConverter;
 import org.bouncycastle.cert.jcajce.JcaX509ExtensionUtils;
 import org.bouncycastle.cert.jcajce.JcaX509v3CertificateBuilder;
@@ -147,6 +145,24 @@ public class CryptoService {
                 false,
                 extUtils.createAuthorityKeyIdentifier(issuerCert.getPublicKey())
         );
+
+        builder.addExtension(
+                Extension.cRLDistributionPoints,
+                false,
+                new CRLDistPoint(new DistributionPoint[] {
+                        new DistributionPoint(
+                                new DistributionPointName(
+                                        new GeneralNames(
+                                                new GeneralName(GeneralName.uniformResourceIdentifier,
+                                                        "http://localhost:8080/api/admin/revoke/crl")
+                                        )
+                                ),
+                                null,
+                                null
+                        )
+                })
+        );
+
 
         // 4️⃣ Sign with issuer private key
         System.out.println("Preparing to sign certificate...");
