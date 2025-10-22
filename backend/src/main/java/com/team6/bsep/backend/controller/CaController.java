@@ -6,6 +6,7 @@ import com.team6.bsep.backend.dto.CreateCaUserRequest;
 import com.team6.bsep.backend.model.User;
 import com.team6.bsep.backend.repository.CertificateAuthorityRepository;
 import com.team6.bsep.backend.service.CaService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -38,7 +39,7 @@ public class CaController {
 
     @PostMapping("/create-subordinate")
     @PreAuthorize("hasRole('CA_USER')")
-    public ResponseEntity<?> addCaUser(@RequestBody CreateCaUserRequest req) {
+    public ResponseEntity<?> addCaUser(@Valid @RequestBody CreateCaUserRequest req) {
         try {
             String issuerEmail = SecurityContextHolder.getContext().getAuthentication().getName();
             caService.createSubCaUser(issuerEmail, req);

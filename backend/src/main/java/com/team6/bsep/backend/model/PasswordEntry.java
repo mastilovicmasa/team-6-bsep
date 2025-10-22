@@ -25,8 +25,11 @@ public class PasswordEntry {
     @JoinColumn(name = "owner_id", nullable = false)
     private User owner;  // EE korisnik (iz PKI sistema)
 
-    private LocalDateTime createdAt;
+    private LocalDateTime createdAt = LocalDateTime.now();
 
+    @Lob
+    @Column(nullable = false)
+    private String encryptedPassword;
 
     @OneToMany(mappedBy = "passwordEntry", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<PasswordShare> shares;

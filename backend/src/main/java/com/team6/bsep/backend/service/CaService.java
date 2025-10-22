@@ -29,6 +29,7 @@ import java.security.SecureRandom;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Objects;
 import java.util.UUID;
 
 @Service
@@ -64,18 +65,17 @@ public class CaService {
 
         System.out.println("=== [START] Issue CA certificate for user " + email + " ===");
 
-        // 🧩 1. Pronađi Root CA
+        // Pronađi Root CA
         CertificateAuthority rootCa = caRepo.findByRootTrue()
                 .orElseThrow(() -> new IllegalStateException("Root CA not found in database"));
 
-        // 👤 2. Nađi korisnika
+        // Nađi korisnika
         User user = userRepo.findByEmail(email)
                 .orElseThrow(() -> new IllegalArgumentException("CA user not found: " + email));
 
-        // 🏷️ 3. Definiši alias
+        // Definiši alias
         String alias = email + "-ca";
 
-        // 🪄 4. Pozovi zajedničku funkciju
         CertificateAuthority caEntity = issueCaInternal(rootCa, subjectDn, alias, pathLenConstraint, user);
 
         System.out.println("=== [END] Successfully issued CA certificate for user " + email + " ===");
@@ -95,7 +95,7 @@ public class CaService {
 
         System.out.println("=== [START] SubCA issue from " + issuerEmail + " to " + targetEmail + " ===");
 
-        // 👤 1. Issuer (CA koji potpisuje)
+        // Issuer (CA koji potpisuje)
         User issuerUser = userRepo.findByEmail(issuerEmail)
                 .orElseThrow(() -> new IllegalArgumentException("Issuer CA user not found: " + issuerEmail));
         CertificateAuthority issuerCa = issuerUser.getCertificateAuthority();
@@ -108,11 +108,15 @@ public class CaService {
         if (issuerCa.getRevokedAt() != null) {
             throw new IllegalStateException("This CA certificate has been revoked and cannot issue new certificates.");
         }
-        // 🎯 2. Target korisnik
+        // Target korisnik
         User targetUser = userRepo.findByEmail(targetEmail)
                 .orElseThrow(() -> new IllegalArgumentException("Target user not found: " + targetEmail));
 
-        // 🪄 3. Poziv zajedničke funkcije
+        if (!Objects.equals(targetUser.getIssuerCa(), issuerCa)) {
+            throw new IllegalStateException("You can issue certificates only to your subordinate users");
+        }
+
+
         int newPathLen = issuerCa.getPathLenConstraint() - 1;
         String alias = targetEmail + "-ca";
         CertificateAuthority caEntity = issueCaInternal(issuerCa, subjectDn, alias, newPathLen, targetUser);
@@ -129,37 +133,37 @@ public class CaService {
             User targetUser
     ) throws Exception {
 
-        // 🔓 1. Dešifruj lozinku keystore-a izdavaoca (root ili intermediate)
+        //  Dešifruj lozinku keystore-a izdavaoca (root ili intermediate)
         String issuerPass = cryptoService.decrypt(issuerCa.getKeystorePasswordEnc());
 
-        // 📂 2. Učitaj issuer keystore
+        // Učitaj issuer keystore
         KeyStore issuerKs = KeyStore.getInstance("PKCS12");
         try (var in = Files.newInputStream(Path.of(issuerCa.getKeystorePath()))) {
             issuerKs.load(in, issuerPass.toCharArray());
         }
 
-        // 🔑 3. Izvuci issuer privatni ključ i sertifikat
+        // Izvuci issuer privatni ključ i sertifikat
         PrivateKey issuerKey = (PrivateKey) issuerKs.getKey(issuerCa.getKeystoreAlias(), issuerPass.toCharArray());
         X509Certificate issuerCert = (X509Certificate) issuerKs.getCertificate(issuerCa.getKeystoreAlias());
 
-        // 🔐 4. Generiši novu lozinku za novi keystore
+        // Generiši novu lozinku za novi keystore
         String ksPassword = generateRandomSecret();
 
-        // 🏗️ 5. Kreiraj novi CA keystore potpisan od izdavaoca
+        //  Kreiraj novi CA keystore potpisan od izdavaoca
         KeyStore newKs = cryptoService.createCaKeystore(issuerCert, issuerKey, subjectDn, alias, ksPassword, pathLenConstraint);
 
-        // 💾 6. Snimi novi keystore fajl
+        // Snimi novi keystore fajl
         Path ksPath = Path.of("data/ca-users/" + alias + ".p12");
         Files.createDirectories(ksPath.getParent());
         try (OutputStream os = Files.newOutputStream(ksPath)) {
             newKs.store(os, ksPassword.toCharArray());
         }
 
-        // 🔍 7. Verifikuj novi sertifikat
+        // Verifikuj novi sertifikat - da li je potpis validan i da li lanac poverenja funkcionise
         X509Certificate newCert = (X509Certificate) newKs.getCertificate(alias);
         newCert.verify(issuerCert.getPublicKey());
 
-        // 🧱 8. Kreiraj novi CA entitet
+        // Kreiraj novi CA entitet
         CertificateAuthority caEntity = CertificateAuthority.builder()
                 .root(false)
                 .subjectDn(subjectDn)
@@ -174,7 +178,7 @@ public class CaService {
                 .issuer(issuerCa)
                 .build();
 
-        // 💿 9. Sačuvaj sve u bazi i poveži korisnika
+        //  Sačuvaj sve u bazi i poveži korisnika
         caRepo.save(caEntity);
         targetUser.setCertificateAuthority(caEntity);
         userRepo.save(targetUser);
@@ -195,7 +199,7 @@ public class CaService {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Email already registered");
         }
 
-        // 1️⃣ Pronađi issuer CA korisnika
+        //  Pronađi issuer CA korisnika
         User issuerUser = userRepo.findByEmail(issuerEmail)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Issuer CA user not found"));
         CertificateAuthority issuerCa = issuerUser.getCertificateAuthority();
@@ -206,10 +210,10 @@ public class CaService {
         if (issuerCa.getPathLenConstraint() <= 0)
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "This CA cannot create subordinate users (pathLenConstraint=0)");
 
-        // 2️⃣ Generiši login lozinku
+        //  Generiši login lozinku
         String rawPassword = UUID.randomUUID().toString().substring(0, 12);
 
-        // 3️⃣ Kreiraj user entitet sa CA rolom
+        // Kreiraj user entitet sa CA rolom
         var newUser = User.builder()
                 .email(normalized)
                 .firstName(req.firstName())
@@ -225,10 +229,10 @@ public class CaService {
 
         userRepo.save(newUser);
 
-        // 4️⃣ Pošalji mejl novom korisniku
+        // Pošalji mejl novom korisniku
         emailService.sendCaUserCreated(normalized, rawPassword, req.firstName());
 
-        // 5️⃣ Log info
+        // ⃣ Log info
         System.out.printf(
                 "✅ Subordinate CA user created by %s (issuer CA=%s, pathLen=%d): %s%n",
                 issuerEmail,

@@ -22,7 +22,7 @@ public class AuthController {
     @PostMapping("/register")
     public ResponseEntity<Void> register(@Valid @RequestBody RegisterRequest req) {
         auth.register(req);                // baca 400/409 po potrebi
-        return ResponseEntity.status(HttpStatus.CREATED).build(); // 201 bez tela
+        return ResponseEntity.status(HttpStatus.CREATED).build(); // 201
     }
 
     @GetMapping("/verify")
@@ -32,7 +32,7 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public ResponseEntity<?> login(@RequestBody LoginRequest request) {
+    public ResponseEntity<?> login(@Valid @RequestBody LoginRequest request) {
         return auth.login(
                 request.getEmail(),
                 request.getPassword(),
@@ -61,7 +61,7 @@ public class AuthController {
 
     @PostMapping("/change-password")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<Void> changePassword(@RequestBody ChangePasswordRequest req) {
+    public ResponseEntity<Void> changePassword(@Valid @RequestBody ChangePasswordRequest req) {
         auth.changePassword(req);
         return ResponseEntity.ok().build();
     }

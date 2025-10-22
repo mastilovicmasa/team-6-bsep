@@ -7,5 +7,6 @@ import java.util.Optional;
 
 public interface EndEntityCertificateRepository extends JpaRepository<EndEntityCertificate, Long> {
     Optional<EndEntityCertificate> findByCsrId(Long csrId);
+    Optional<EndEntityCertificate> findByCsr_User_Id(Long userId);
 }
 

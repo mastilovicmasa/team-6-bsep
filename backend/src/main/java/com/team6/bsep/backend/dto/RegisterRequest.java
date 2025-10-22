@@ -8,7 +8,7 @@ import jakarta.validation.constraints.Size;
 public class RegisterRequest {
     @NotBlank
     @Email
-    @Size(max = 254)              // realan max za email
+    @Size(max = 254)
     private String email;
 
     @NotBlank
@@ -21,16 +21,16 @@ public class RegisterRequest {
     private String organization;
 
     @NotBlank
-    @Size(min = 12, max = 128)    // OWASP stil: dužina, ne regex-kompleksnost
+    @Size(min = 12, max = 128)
     private String password;
 
     @NotBlank
     private String confirmPassword;
 
-    // obavezno prazan ctor za Jackson
+
     public RegisterRequest() {}
 
-    // (opciono) sve-args ctor, ako želiš
+
     public RegisterRequest(String email, String firstName, String lastName,
                            String organization, String password, String confirmPassword) {
         this.email = email;
@@ -41,7 +41,7 @@ public class RegisterRequest {
         this.confirmPassword = confirmPassword;
     }
 
-    // getteri/setteri
+
     public String getEmail() { return email; }
     public void setEmail(String email) { this.email = email; }
 

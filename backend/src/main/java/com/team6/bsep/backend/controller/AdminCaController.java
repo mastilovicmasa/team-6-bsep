@@ -10,6 +10,7 @@ import com.team6.bsep.backend.repository.UserRepository;
 import com.team6.bsep.backend.service.CaService;
 import com.team6.bsep.backend.service.RootCaService;
 import com.team6.bsep.backend.repository.CertificateAuthorityRepository;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -49,7 +50,7 @@ public class AdminCaController {
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> issueCaCertificate(
             @PathVariable String email,
-            @RequestBody IssueCaRequest body) {
+            @Valid @RequestBody IssueCaRequest body) {
         try {
             String subjectDn = body.getSubjectDn();
             int pathLen = body.getPathLenConstraint();
