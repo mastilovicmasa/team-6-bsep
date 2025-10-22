@@ -5,6 +5,7 @@ import com.team6.bsep.backend.dto.MyCsr;
 import com.team6.bsep.backend.model.CertificateSigningRequest;
 import com.team6.bsep.backend.model.User;
 import com.team6.bsep.backend.service.CsrService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -28,7 +29,7 @@ public class CsrController {
     private final CsrService csrService;
 
     @PostMapping("/upload")
-    public ResponseEntity<?> uploadCsr(@ModelAttribute CsrRequest request) {
+    public ResponseEntity<?> uploadCsr(@Valid @ModelAttribute CsrRequest request) {
         try {
             log.info("CA = {}, duration = {}, file = {}",
                     request.getCaName(),
