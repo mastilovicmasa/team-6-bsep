@@ -51,7 +51,7 @@ public class AuthService {
     private long expiryHours;
 
     // za logovanje kompletnog linka u dev-u
-    @Value("${app.backend-base-url:http://localhost:8080}")
+    @Value("${app.backend-base-url:https://localhost:8443}")
     private String backendBaseUrl;
 
     @Value("${app.reset.expiry-minutes:60}")
