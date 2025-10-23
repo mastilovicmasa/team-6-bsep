@@ -54,13 +54,33 @@ export class CaService {
   }
 
   // Izdaje Sub-CA sertifikat podređenom korisniku
-  issueSubCaCertificate(email: string, subjectDn: string): Observable<any> {
+  // issueSubCaCertificate(email: string, subjectDn: string): Observable<any> {
+  //   const token = localStorage.getItem('jwt');
+  //   const headers = new HttpHeaders({
+  //     Authorization: `Bearer ${token}`
+  //   });
+  //   return this.http.post(`${this.api}/api/ca/issue-subca/${email}`, { subjectDn }, { headers });
+  // }
+   issueSubCaCertificate(email: string, subjectDn: string, templateId?: number): Observable<any> {
     const token = localStorage.getItem('jwt');
-    const headers = new HttpHeaders({
-      Authorization: `Bearer ${token}`
-    });
-    return this.http.post(`${this.api}/api/ca/issue-subca/${email}`, { subjectDn }, { headers });
+    const headers = new HttpHeaders({ Authorization: `Bearer ${token}` });
+
+    const body: any = { subjectDn };
+    if (templateId) body.templateId = templateId;
+
+    return this.http.post(`${this.api}/api/ca/issue-subca/${email}`, body, { headers });
   }
+
+  revokeSubordinateCertificate(serial: string, reason: string) {
+    const token = localStorage.getItem('jwt');
+    const headers = new HttpHeaders({ Authorization: `Bearer ${token}` });
+    return this.http.post(
+      `${this.api}/api/ca/revoke/${serial}`,
+      { reason },
+      { headers, responseType: 'text' }
+    );
+  }
+
 
   createSubordinateUser(userData: any): Observable<any> {
     const token = localStorage.getItem('jwt');
@@ -85,7 +105,32 @@ export class CaService {
       Authorization: `Bearer ${token}`
     });
     return this.http.get<boolean>(`${this.api}/api/admin/revoke/status/${serialHex}`, { headers });
-}
+  }
 
+  createTemplate(template: any) {
+  const headers = this.getAuthHeaders();
+  return this.http.post(`${this.api}/api/ca/templates`, template, { headers });
+  }
 
+  getTemplatesForIssuer(issuerId: number) {
+    const headers = this.getAuthHeaders();
+    return this.http.get(`${this.api}/api/ca/templates/issuer/${issuerId}`, { headers });
+  }
+
+  private getAuthHeaders() {
+    const token = localStorage.getItem('jwt');
+    return new HttpHeaders({ Authorization: `Bearer ${token}` });
+  }
+
+  getAllTemplates() {
+    const headers = this.getAuthHeaders();
+    return this.http.get<any[]>(`${this.api}/api/ca/templates`, { headers });
+  }
+  getTemplates(): Observable<any[]> {
+    const token = localStorage.getItem('jwt');
+    const headers = new HttpHeaders({ Authorization: `Bearer ${token}` });
+    return this.http.get<any[]>(`${this.api}/api/ca/templates`, { headers });
+  }
+
+ 
 }

@@ -1,5 +1,7 @@
 package com.team6.bsep.backend.model;
 
+
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -21,6 +23,7 @@ public class CertificateAuthority {
     Instant notBefore; Instant notAfter;
     Integer pathLenConstraint;
     String keystorePath; String keystoreAlias;
+    @JsonIgnore
     @Lob String keystorePasswordEnc; @Lob String keyPasswordEnc;
     Instant revokedAt;
 

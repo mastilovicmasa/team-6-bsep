@@ -4,6 +4,7 @@ import { CaUser } from '../shared/ca-user.model';
 import { CaService } from '../shared/ca.service';
 import { CommonModule } from '@angular/common';
 import { CreateCaUserComponent } from '../create-ca-user/create-ca-user';
+import { firstValueFrom } from 'rxjs';
 
 @Component({
   selector: 'app-ca-users',
@@ -56,38 +57,65 @@ export class CaUsers implements OnInit{
   }
 
 
- issueCertificate(user: CaUser) {
-    Swal.fire({
-      title: 'Issue CA Certificate?',
-      html: `
-        <label class="block text-left mb-2 font-medium">Subject DN:</label>
-        <input id="subjectDn" class="swal2-input" value="CN=${user.organization} CA, O=${user.organization}, C=RS" />
+async issueCertificate (user: CaUser) {
+     try {
+        // 1️⃣ Učitaj sve šablone
+        const templates = await firstValueFrom(this.caUsersService.getAllTemplates());
 
-        <div class="text-left mt-3">
-          <label class="block mb-2 font-medium">Allow further CA issuance?</label>
-          <div>
-            <input type="radio" id="allowYes" name="pathLen" value="1" checked>
-            <label for="allowYes">Yes (CA can issue other CAs)</label>
-          </div>
-          <div>
-            <input type="radio" id="allowNo" name="pathLen" value="0">
-            <label for="allowNo">No (CA cannot issue other CAs)</label>
-          </div>
-        </div>
-      `,
-      focusConfirm: false,
-      showCancelButton: true,
-      confirmButtonText: 'Issue',
-      preConfirm: () => {
-        const subjectDn = (document.getElementById('subjectDn') as HTMLInputElement).value.trim();
-        const pathLen = parseInt((document.querySelector('input[name="pathLen"]:checked') as HTMLInputElement).value);
+        // 2️⃣ Napravi HTML za dropdown
+        const templateOptions = templates.length
+          ? templates.map((t: any) => `<option value="${t.id}">${t.name}</option>`).join('')
+          : '<option value="">(no templates available)</option>';
 
-        if (!subjectDn) {
-          Swal.showValidationMessage('Subject DN is required');
-          return false;
-        }
-        return { subjectDn, pathLen };
-      }
+        // 3️⃣ Prikaz forme sa template dropdownom
+        Swal.fire({
+          title: 'Issue CA Certificate',
+          html: `
+            <div class="text-left mb-3">
+              <label class="block mb-2 font-medium">Select Template:</label>
+              <select id="templateSelect" class="swal2-select">${templateOptions}</select>
+            </div>
+
+            <label class="block text-left mb-2 font-medium">Subject DN:</label>
+            <input id="subjectDn" class="swal2-input" value="CN=${user.organization} CA, O=${user.organization}, C=RS" />
+
+            <div class="text-left mt-3">
+              <label class="block mb-2 font-medium">Allow further CA issuance?</label>
+              <div>
+                <input type="radio" id="allowYes" name="pathLen" value="1" checked>
+                <label for="allowYes">Yes (CA can issue other CAs)</label>
+              </div>
+              <div>
+                <input type="radio" id="allowNo" name="pathLen" value="0">
+                <label for="allowNo">No (CA cannot issue other CAs)</label>
+              </div>
+            </div>
+          `,
+          showCancelButton: true,
+          confirmButtonText: 'Issue',
+          focusConfirm: false,
+          didOpen: () => {
+            // 4️⃣ Auto-popuna Subject DN kad izabere šablon
+            const select = document.getElementById('templateSelect') as HTMLSelectElement;
+            select?.addEventListener('change', () => {
+              const selectedId = select.value;
+              const tpl = templates.find((t: any) => t.id == selectedId);
+              if (tpl) {
+                const subj = document.getElementById('subjectDn') as HTMLInputElement;
+                subj.value = `CN=${tpl.cnRegex}, O=${user.organization}, C=RS`;
+              }
+            });
+          },
+          preConfirm: () => {
+            const subjectDn = (document.getElementById('subjectDn') as HTMLInputElement).value.trim();
+            const pathLen = parseInt((document.querySelector('input[name="pathLen"]:checked') as HTMLInputElement).value);
+
+            if (!subjectDn) {
+              Swal.showValidationMessage('Subject DN is required');
+              return false;
+            }
+            return { subjectDn, pathLen };
+          }
     }).then((result) => {
       if (result.isConfirmed && result.value) {
         const { subjectDn, pathLen } = result.value;
@@ -103,7 +131,12 @@ export class CaUsers implements OnInit{
         });
       }
     });
+  } catch (e) {
+    console.error(e);
+    Swal.fire('Error', 'Failed to load templates.', 'error');
   }
+}
+
 
   revokeCertificate(user: any) {
     Swal.fire({
@@ -157,5 +190,43 @@ export class CaUsers implements OnInit{
       }
     });
   }
+
+  openTemplateDialog() {
+  Swal.fire({
+    title: 'Create Template',
+    html: `
+      <input id="tplName" class="swal2-input" placeholder="Template name">
+      <input id="tplCN" class="swal2-input" placeholder="CN regex (e.g. .*\\.ftn\\.com)">
+      <input id="tplSAN" class="swal2-input" placeholder="SAN regex (optional)">
+      <input id="tplTTL" type="number" class="swal2-input" placeholder="TTL (days)">
+    `,
+    showCancelButton: true,
+    confirmButtonText: 'Save',
+    preConfirm: () => {
+      const name = (document.getElementById('tplName') as HTMLInputElement).value.trim();
+      const cnRegex = (document.getElementById('tplCN') as HTMLInputElement).value.trim();
+      const sanRegex = (document.getElementById('tplSAN') as HTMLInputElement).value.trim();
+      const ttlDays = parseInt((document.getElementById('tplTTL') as HTMLInputElement).value);
+      if (!name || !cnRegex || !ttlDays) {
+        Swal.showValidationMessage('All required fields must be filled');
+        return false;
+      }
+      return { name, cnRegex, sanRegex, ttlDays };
+    }
+  }).then(result => {
+    if (result.isConfirmed) {
+      this.caUsersService.createTemplate({
+        name: result.value.name,
+        cnRegex: result.value.cnRegex,
+        sanRegex: result.value.sanRegex,
+        ttlDays: result.value.ttlDays,
+        keyUsageMask: 32, // default KeyUsage.digitalSignature
+        extendedKeyUsages: ["1.3.6.1.5.5.7.3.1"] // serverAuth default
+      }).subscribe(() => {
+        Swal.fire('Template created!', '', 'success');
+      });
+    }
+  });
+}
 
 }

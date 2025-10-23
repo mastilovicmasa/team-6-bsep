@@ -80,6 +80,29 @@ public class RevocationService {
         }
     }
 
+    @Transactional
+    public void revokeCertificateByCaUser(String serial, String email, String reason) throws Exception {
+        // 🔹 Nađi korisnika koji pokušava revokaciju
+        User caUser = userRepo.findByEmail(email)
+                .orElseThrow(() -> new IllegalArgumentException("CA user not found"));
+
+        CertificateAuthority issuerCa = caUser.getCertificateAuthority();
+        if (issuerCa == null)
+            throw new IllegalStateException("User is not associated with a CA certificate");
+
+        // 🔹 Nađi target sertifikat koji želi da povuče
+        CertificateAuthority target = caRepo.findBySerialHex(serial)
+                .orElseThrow(() -> new IllegalArgumentException("Certificate not found"));
+
+        // ✅ Proveri da li CA user ima pravo da povuče taj sertifikat
+        if (target.getIssuer() == null || !target.getIssuer().getId().equals(issuerCa.getId())) {
+            throw new SecurityException("You can only revoke certificates you have issued.");
+        }
+
+        // 🔹 Pozovi postojeću revocation logiku
+        revokeCertificate(serial, reason);
+    }
+
     /**
      * Checks if a certificate has been revoked.
      */
