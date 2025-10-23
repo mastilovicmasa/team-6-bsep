@@ -86,6 +86,7 @@ public class CaController {
                         resp.setLastName(u.getLastName());
                         resp.setOrganization(u.getOrganization());
                         resp.setHasCaCertificate(u.getCertificateAuthority() != null);
+                        resp.setCertificateSerial(u.getCertificateAuthority().getSerialHex() != null ? u.getCertificateAuthority().getSerialHex() : "");
                         return resp;
                     })
                     .toList();

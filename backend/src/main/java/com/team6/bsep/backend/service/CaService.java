@@ -259,4 +259,34 @@ public class CaService {
         return subordinates;
     }
 
+    @Transactional(readOnly = true)
+    public List<CaUserResponse> getALLSubordinateCaUsers(String issuerEmail) {
+        User issuerUser = userRepo.findByEmail(issuerEmail)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Issuer user not found"));
+        CertificateAuthority issuerCa = issuerUser.getCertificateAuthority();
+
+        if (issuerCa == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "User is not associated with a CA certificate");
+        }
+
+        List<User> subordinates = userRepo.findAllByIssuerCa(issuerCa);
+        System.out.printf("ℹ️ Found %d subordinate CA users for issuer %s (%s)%n",
+                subordinates.size(), issuerEmail, issuerCa.getSubjectDn());
+
+        // 🔹 mapiraj u DTO sa serialom i revoked statusom
+        return subordinates.stream()
+                .map(user -> new CaUserResponse(
+                            user.getId(),
+                            user.getEmail(),
+                            user.getFirstName(),
+                            user.getLastName(),
+                            user.getOrganization(),
+                            user.getCertificateAuthority() != null,// ako ima CA sertifikat
+                            user.getCertificateAuthority() != null ?
+                                    user.getCertificateAuthority().getSerialHex() : null
+                    ))
+                .toList();
+
+    }
+
 }
